@@ -1,6 +1,3 @@
-import os
-os.environ['MUJOCO_PY_FORCE_FORK'] = 'False'
-
 import mujoco
 from mujoco import mjx
 import jax
@@ -45,11 +42,12 @@ class Dynamics:
 
         # Create a free camera
         camera = mujoco.MjvCamera()
-        camera.lookat = jnp.array([0.0, 0.0, 1.2])  # Point the camera is looking at (x, y, z)
+        camera.lookat = jnp.array([0.0, 0.0, 1.0])  # Point the camera is looking at (x, y, z)
+        # camera.lookat = jnp.array([0.0, 0.0, 0.5])  # Point the camera is looking at (x, y, z)
         camera.distance = 3.0  # Distance from the lookat point
         camera.azimuth = 90.0  # Horizontal angle (degrees, 0 = looking along +x)
-        # camera.elevation = 10.0  # Vertical angle (degrees, -90 = straight down)
-        camera.elevation = -10.0  # Vertical angle (degrees, -90 = straight down)
+        camera.elevation = 0.0  # Vertical angle (degrees, -90 = straight down)
+        # camera.elevation = -10.0  # Vertical angle (degrees, -90 = straight down)
 
         data = mujoco.MjData(self.model)
         writer = imageio.get_writer(path, fps = 60)
@@ -64,21 +62,21 @@ class Dynamics:
 
         renderer.close()
         writer.close()
-
         # print(frames)
         return
 
 if __name__ == '__main__':
 
-    dyn = Dynamics(path = 'xml/pendulum.xml')
-    # dyn = Dynamics(path = 'mujoco_menagerie/franka_emika_panda/mjx_scene.xml')
-    xt = jnp.zeros(dyn.state_dim)
+    dyn = Dynamics(path = 'xml/blob.xml')
+    # dyn = Dynamics(path = 'mujoco_menagerie/google_barkour_vb/scene_mjx.xml')
+    
+    xt = jnp.concatenate([
+        mjx.make_data(dyn.mjx_model).qpos,
+        jnp.zeros(dyn.nv)
+    ])
+
     ut = jnp.zeros(dyn.control_dim)
-    xt = xt.at[0].set(3.1)
-
-    # ut = ut.at[1].set(0.5)
-    # ut = ut.at[4].set(0.5)
-
+    # ut = ut.at[0].set(2.0)
 
     T = 300
     X = jnp.zeros((T+1, dyn.state_dim))
@@ -90,5 +88,4 @@ if __name__ == '__main__':
         print(xt)
         X = X.at[t+1].set(xt)
 
-    dyn.render(X, path = 'pendulum.mp4')
-    # dyn.render(X, path = 'panda.mp4')
+    dyn.render(X, path = 'blob.mp4')

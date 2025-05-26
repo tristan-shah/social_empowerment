@@ -1,0 +1,126 @@
+<mujoco model="blob">
+    <visual>
+        <global offheight="720" offwidth="1280"/>
+    </visual>
+
+    <option timestep="0.05" gravity="0 0 -9.81"/>
+
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.6 0.7 0.9" rgb2="0.3 0.3 0.4" width="512" height="3072"/>
+        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
+        <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    </asset>
+
+    <worldbody>
+        <light name="global_light" directional="true" diffuse="1 1 1" specular="0.3 0.3 0.3" castshadow="false"/>
+        <light name="fill_light_0" pos="-5 0 10" dir="0 0 -1" directional="false" diffuse="1 1 1" specular="0.2 0.2 0.2"/>
+        <light name="fill_light_1" pos="0 0 10" dir="0 0 -1" directional="false" diffuse="1 1 1" specular="0.2 0.2 0.2"/>
+        <light name="fill_light_2" pos="5 0 10" dir="0 0 -1" directional="false" diffuse="1 1 1" specular="0.2 0.2 0.2"/>
+
+        <geom name="floor" pos="0 0 0" size="0 0 0.05" type="plane" material="groundplane"/>
+
+        <body name="body_cell:0" pos="-0.5 0 0.1">
+            <joint name="x_joint_cell:0" type="slide" axis="1 0 0"/>
+            <joint name="z_joint_cell:0" type="slide" axis="0 0 1"/>
+            <geom name="cell:0" type="sphere" size="0.1" mass="1"/>
+            <site name="site_cell:0" pos="0 0 0" size="0.01"/>
+        </body>
+
+        <body name="body_cell:1" pos="0.0 0 0.1">
+            <joint name="x_joint_cell:1" type="slide" axis="1 0 0"/>
+            <joint name="z_joint_cell:1" type="slide" axis="0 0 1"/>
+            <geom name="cell:1" type="sphere" size="0.1" mass="1"/>
+            <site name="site_cell:1" pos="0 0 0" size="0.01"/>
+        </body>
+
+        <body name="body_cell:2" pos="-0.5 0 0.6">
+            <joint name="x_joint_cell:2" type="slide" axis="1 0 0"/>
+            <joint name="z_joint_cell:2" type="slide" axis="0 0 1"/>
+            <geom name="cell:2" type="sphere" size="0.1" mass="1"/>
+            <site name="site_cell:2" pos="0 0 0" size="0.01"/>
+        </body>
+
+        <body name="body_cell:3" pos="0.0 0 0.6">
+            <joint name="x_joint_cell:3" type="slide" axis="1 0 0"/>
+            <joint name="z_joint_cell:3" type="slide" axis="0 0 1"/>
+            <geom name="cell:3" type="sphere" size="0.1" mass="1"/>
+            <site name="site_cell:3" pos="0 0 0" size="0.01"/>
+        </body>
+
+        <body name="body_cell:4" pos="0.5 0 0.1">
+            <joint name="x_joint_cell:4" type="slide" axis="1 0 0"/>
+            <joint name="z_joint_cell:4" type="slide" axis="0 0 1"/>
+            <geom name="cell:4" type="sphere" size="0.1" mass="1"/>
+            <site name="site_cell:4" pos="0 0 0" size="0.01"/>
+        </body>
+
+        <body name="body_cell:5" pos="0.5 0 0.6">
+            <joint name="x_joint_cell:5" type="slide" axis="1 0 0"/>
+            <joint name="z_joint_cell:5" type="slide" axis="0 0 1"/>
+            <geom name="cell:5" type="sphere" size="0.1" mass="1"/>
+            <site name="site_cell:5" pos="0 0 0" size="0.01"/>
+        </body>
+    </worldbody>
+
+    <tendon>
+        <spatial name="spring_0_1" stiffness="75" damping="1" springlength="0.5">
+            <site site="site_cell:0"/>
+            <site site="site_cell:1"/>
+        </spatial>
+
+        <spatial name="spring_0_2" stiffness="75" damping="1" springlength="0.5">
+            <site site="site_cell:0"/>
+            <site site="site_cell:2"/>
+        </spatial>
+
+        <spatial name="spring_1_3" stiffness="75" damping="1" springlength="0.5">
+            <site site="site_cell:1"/>
+            <site site="site_cell:3"/>
+        </spatial>
+
+        <spatial name="spring_2_3" stiffness="75" damping="1" springlength="0.5">
+            <site site="site_cell:2"/>
+            <site site="site_cell:3"/>
+        </spatial>
+
+        <spatial name="spring_1_2" stiffness="75" damping="1" springlength="0.707">
+            <site site="site_cell:1"/>
+            <site site="site_cell:2"/>
+        </spatial>
+
+        <spatial name="spring_0_3" stiffness="75" damping="1" springlength="0.707">
+            <site site="site_cell:0"/>
+            <site site="site_cell:3"/>
+        </spatial>
+
+        <spatial name="spring_1_4" stiffness="75" damping="1" springlength="0.5">
+            <site site="site_cell:1"/>
+            <site site="site_cell:4"/>
+        </spatial>
+
+        <spatial name="spring_3_4" stiffness="75" damping="1" springlength="0.707">
+            <site site="site_cell:3"/>
+            <site site="site_cell:4"/>
+        </spatial>
+
+        <spatial name="spring_4_5" stiffness="75" damping="1" springlength="0.5">
+            <site site="site_cell:4"/>
+            <site site="site_cell:5"/>
+        </spatial>
+
+        <spatial name="spring_3_5" stiffness="75" damping="1" springlength="0.5">
+            <site site="site_cell:3"/>
+            <site site="site_cell:5"/>
+        </spatial>
+
+        <spatial name="spring_1_5" stiffness="75" damping="1" springlength="0.707">
+            <site site="site_cell:1"/>
+            <site site="site_cell:5"/>
+        </spatial>
+
+    </tendon>
+
+    <actuator>
+        <motor joint="x_joint_cell:0" ctrlrange="-2 2" gear="1"/>
+    </actuator>
+</mujoco>

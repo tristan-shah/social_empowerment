@@ -1,4 +1,5 @@
 mujoco_menagerie/
+mujoco_playground/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
