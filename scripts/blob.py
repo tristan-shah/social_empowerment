@@ -6,7 +6,7 @@ from soc_emp import Dynamics
 
 if __name__ == '__main__':
 
-    T = 1000
+    T = 500
 
     xml_path = 'xml/blob.xml'
     dyn = Dynamics(path = xml_path)

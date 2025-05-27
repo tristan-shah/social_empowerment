@@ -14,33 +14,21 @@ class TrajectoryOptimizer:
     def __init__(
             self, 
             dyn: Dynamics, 
-            max_power: float | Array, 
             compute_error: callable,
             Q: Array = None, 
             R: Array = None):
-
-        if type(max_power) == float:
-            max_power = jnp.array([max_power])
-
+        
         self.dyn = dyn
-        self.max_power = max_power
-
         self.compute_error = compute_error
+        
+        ## extract the control ranges from each motors
+        self.ctrl_range = self.dyn.mjx_model.actuator_ctrlrange
 
-        ## weighting matrices for states (Q) and control (R)
-        dx = dyn.state_dim
-        du = dyn.control_dim
+        ## cost weighting matrices
+        self.Q = Q
+        self.R = R
 
-        if Q is None:
-            self.Q = jnp.eye(dx)
-        else:
-            self.Q = Q
-
-        if R is None:
-            self.R = jnp.eye(du)
-        else:
-            self.R = R
-
+        ## allows the linearization to occur along trajectories of states and controls
         self.batch_linearize = jax.jit(jax.vmap(self.dyn.linearize))
 
     def forward(
@@ -73,18 +61,16 @@ class TrajectoryOptimizer:
                 ut = U[t]
             else:
 
-                delta_x = jnp.stack([ ## specific to single pendulum
-                    smooth_angle_wrap(X_new[t, 0] - X[t, 0]),
-                    (X_new[t, 1] - X[t, 1])
-                    ])
-                # delta_x = X_new[t] - X[t]
+                # delta_x = jnp.stack([ ## specific to single pendulum
+                #     smooth_angle_wrap(X_new[t, 0] - X[t, 0]),
+                #     (X_new[t, 1] - X[t, 1])
+                #     ])
+                delta_x = X_new[t] - X[t]
                 ut = k[t] + K[t] @ delta_x
 
-            ut = ut.clip(-self.max_power, self.max_power)
-
+            ut = ut.clip(self.ctrl_range[:, 0], self.ctrl_range[:, 1])
             ## step dynamics
             xt = self.dyn.step(xt, ut)
-
             ## update sequences
             X_new = X_new.at[t+1].set(xt)
             U_new = U_new.at[t].set(ut)
@@ -104,12 +90,12 @@ class TrajectoryOptimizer:
         Q = self.Q
         R = self.R
 
-        L = jnp.copy(Q) #jnp.zeros((dx, dx))
+        L = jnp.copy(Q)
         M = jnp.zeros((dx, dx))
-        
+        E = Q @ r[-1]
+
         k = jnp.zeros((T, du))
         K = jnp.zeros((T, du, dx))
-        E = Q @ r[-1]
 
         for t in reversed(range(T)):
             P = L + M
@@ -131,11 +117,13 @@ class TrajectoryOptimizer:
 
         return k, K
     
-    def update(self, x0, X, U, A, B):
-        r = self.compute_error(X) ## compute error of previous nominal trajectory
+    def update(self, x0: Array, X: Array, U: Array, A: Array, B: Array):
+        ## compute error of previous nominal trajectory
+        r = self.compute_error(X)
         k, K = self.backward(r, U, A, B)
         X_new, U_new = self.forward(x0, X = X, k = k, K = K)
         A, B = self.batch_linearize(X_new[:-1], U_new)
         J_new = jnp.sum(jnp.square(r) @ self.Q)
+
         return J_new, X_new, U_new, A, B
     
