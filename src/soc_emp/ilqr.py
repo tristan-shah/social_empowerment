@@ -60,12 +60,11 @@ class TrajectoryOptimizer:
             if U is not None:
                 ut = U[t]
             else:
-
-                # delta_x = jnp.stack([ ## specific to single pendulum
-                #     smooth_angle_wrap(X_new[t, 0] - X[t, 0]),
-                #     (X_new[t, 1] - X[t, 1])
-                #     ])
-                delta_x = X_new[t] - X[t]
+                delta_x = jnp.stack([ ## specific to single pendulum
+                    smooth_angle_wrap(X_new[t, 0] - X[t, 0]),
+                    (X_new[t, 1] - X[t, 1])
+                    ])
+                # delta_x = X_new[t] - X[t]
                 ut = k[t] + K[t] @ delta_x
 
             ut = ut.clip(self.ctrl_range[:, 0], self.ctrl_range[:, 1])
@@ -127,3 +126,68 @@ class TrajectoryOptimizer:
 
         return J_new, X_new, U_new, A, B
     
+    def __call__(
+            self,
+            x0: Array,
+            U: Array, 
+            max_iter: int = 30,
+            tol: float = 0.1,
+            use_all_iterations: bool = False):
+
+        i = 0
+        J = jnp.inf
+        converged = False
+
+        ## initial forward rollout
+        X, U = self.forward(x0, U = U)
+        A, B = self.batch_linearize(X[:-1], U)
+
+        while i < max_iter and (not converged or use_all_iterations):
+            i += 1
+
+            J_new, X_new, U_new, A, B = self.update(x0, X, U, A, B)
+
+            if J_new > J and not use_all_iterations:
+                break
+            else:
+                converged = (J - J_new) < tol
+                X = X_new
+                U = U_new
+                J = J_new
+
+        return X, U, J
+
+
+class ModelPredictiveController:
+    def __init__(self, optimizer: TrajectoryOptimizer, horizon: int):
+
+        key = jax.random.PRNGKey(0)
+
+        self.optimizer = optimizer
+        self.horizon = horizon
+
+        ## storing the current plan and action sequence
+        self.X = jnp.zeros((horizon+1, optimizer.dyn.state_dim))
+
+        low = self.optimizer.ctrl_range[:, 0]
+        high = self.optimizer.ctrl_range[:, 1]
+
+        # self.U = (jax.random.uniform(key, (horizon, optimizer.dyn.control_dim)) * 2 * optimizer.max_power - optimizer.max_power)
+        self.U = (jax.random.uniform(key, (horizon, optimizer.dyn.control_dim) ) * (high - low) + low)
+
+    def __call__(self, xt: Array):
+        ## update the plan with new state xt
+        X, U, J = self.optimizer(xt, self.U)
+        
+        self.X = X
+        self.U = U
+
+        ## select the first action
+        ut = self.U[0]
+
+        ## shift over the plan by one action
+        # self.U = self.U.roll(-1)
+        self.U = jnp.roll(self.U, shift=-1, axis = 0)
+        self.U = self.U.at[-1].set(self.U[-2])
+        # self.U[-1] = self.U[-2].clone()
+        return ut, J
