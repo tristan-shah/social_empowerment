@@ -60,11 +60,11 @@ class TrajectoryOptimizer:
             if U is not None:
                 ut = U[t]
             else:
-                delta_x = jnp.stack([ ## specific to single pendulum
-                    smooth_angle_wrap(X_new[t, 0] - X[t, 0]),
-                    (X_new[t, 1] - X[t, 1])
-                    ])
-                # delta_x = X_new[t] - X[t]
+                # delta_x = jnp.stack([ ## specific to single pendulum
+                #     smooth_angle_wrap(X_new[t, 0] - X[t, 0]),
+                #     (X_new[t, 1] - X[t, 1])
+                #     ])
+                delta_x = X_new[t] - X[t]
                 ut = k[t] + K[t] @ delta_x
 
             ut = ut.clip(self.ctrl_range[:, 0], self.ctrl_range[:, 1])

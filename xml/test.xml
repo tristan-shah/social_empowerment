@@ -1,0 +1,36 @@
+<mujoco model="blob">
+    <visual>
+        <global offheight="720" offwidth="1280"/>
+    </visual>
+
+    <option timestep="0.05" gravity="0 0 -9.81"/>
+
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.6 0.7 0.9" rgb2="0.3 0.3 0.4" width="512" height="3072"/>
+        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
+        <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    </asset>
+
+    <worldbody>
+        <light name="global_light" directional="true" diffuse="1 1 1" specular="0.3 0.3 0.3" castshadow="false"/>
+        <light name="fill_light_0" pos="-5 0 10" dir="0 0 -1" directional="false" diffuse="1 1 1" specular="0.2 0.2 0.2"/>
+        <light name="fill_light_1" pos="0 0 10" dir="0 0 -1" directional="false" diffuse="1 1 1" specular="0.2 0.2 0.2"/>
+        <light name="fill_light_2" pos="5 0 10" dir="0 0 -1" directional="false" diffuse="1 1 1" specular="0.2 0.2 0.2"/>
+
+        <geom name="floor" pos="0 0 0" size="0 0 0.05" type="plane" material="groundplane" contype="2" conaffinity="1"/>
+
+        <body name="body_cell:0" pos="0.0 0.0 0.1">
+            <joint name="x_joint_cell:0" type="slide" axis="1 0 0"/>
+            <joint name="z_joint_cell:0" type="slide" axis="0 0 1"/>
+            <geom name="cell:0" type="sphere" size="0.1" mass="1" contype="1" conaffinity="2" rgba="60 0 0 1"/>
+            <site name="site_cell:0" pos="0 0 0" size="0.01"/>
+        </body>
+
+        
+    </worldbody>
+
+    <actuator>
+        <motor joint="x_joint_cell:0" ctrlrange="-1 1" gear="5"/>
+        <motor joint="z_joint_cell:0" ctrlrange="-1 1" gear="5"/>
+    </actuator>
+</mujoco>

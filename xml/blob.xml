@@ -43,7 +43,7 @@
         <body name="body_cell:3" pos="0.0 0 0.6">
             <joint name="x_joint_cell:3" type="slide" axis="1 0 0"/>
             <joint name="z_joint_cell:3" type="slide" axis="0 0 1"/>
-            <geom name="cell:3" type="sphere" size="0.1" mass="1" contype="1" conaffinity="2"/>
+            <geom name="cell:3" type="sphere" size="0.1" mass="1" contype="1" conaffinity="2" rgba="60 0 0 1"/>
             <site name="site_cell:3" pos="0 0 0" size="0.01"/>
         </body>
 
@@ -80,6 +80,11 @@
             <joint name="z_joint_cell:8" type="slide" axis="0 0 1"/>
             <geom name="cell:8" type="sphere" size="0.1" mass="1" contype="1" conaffinity="2"/>
             <site name="site_cell:8" pos="0 0 0" size="0.01"/>
+        </body>
+        
+        <body name="goal" pos="5.0 0.0 0.5">
+            <!-- No joint means it's fixed -->
+            <geom type="box" size="0.1 0.1 0.1" rgba="0 140 0 1"/>
         </body>
     </worldbody>
 
