@@ -1,4 +1,6 @@
-<mujoco model="blob">
+<mujoco model="cell_scene">
+    <include file="cell.xml"/>
+
     <visual>
         <global offheight="720" offwidth="1280"/>
     </visual>
@@ -19,18 +21,5 @@
 
         <geom name="floor" pos="0 0 0" size="0 0 0.05" type="plane" material="groundplane" contype="2" conaffinity="1"/>
 
-        <body name="body_cell:0" pos="0.0 0.0 0.1">
-            <joint name="x_joint_cell:0" type="slide" axis="1 0 0"/>
-            <joint name="z_joint_cell:0" type="slide" axis="0 0 1"/>
-            <geom name="cell:0" type="sphere" size="0.1" mass="1" contype="1" conaffinity="2" rgba="60 0 0 1"/>
-            <site name="site_cell:0" pos="0 0 0" size="0.01"/>
-        </body>
-
-        
     </worldbody>
-
-    <actuator>
-        <motor joint="x_joint_cell:0" ctrlrange="-1 1" gear="5"/>
-        <motor joint="z_joint_cell:0" ctrlrange="-1 1" gear="5"/>
-    </actuator>
 </mujoco>

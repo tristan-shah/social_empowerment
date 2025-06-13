@@ -35,11 +35,8 @@ class Dynamics:
         self.linearize = jax.jit(jax.jacfwd(self.step, argnums = (0, 1)))
 
     def step(self, xt: Array, ut: Array):
-
         qpos, qvel = split_state(xt, self.nq)
-
         mjx_data = mjx.make_data(self.mjx_model).replace(qpos = qpos, qvel = qvel, ctrl = ut)
-
         mjx_data = self.mjx_step(self.mjx_model, mjx_data)
         return jnp.concatenate([mjx_data.qpos, mjx_data.qvel])
     
