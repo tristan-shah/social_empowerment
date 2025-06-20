@@ -12,8 +12,8 @@ def unroll(dyn: Dynamics, xt: Array, U: Array):
     Jax compatable simulation loop.
     '''
 
-    def body_fun(xt: Array, ut: Array):
-        xt_next = dyn.step(xt, ut)
+    def body_fun(xt_: Array, ut_: Array):
+        xt_next = dyn.step(xt_, ut_)
         return xt_next, xt_next
     
     xt, _ = jax.lax.scan(body_fun, xt, U)
@@ -58,12 +58,35 @@ def waterfilling_solver(noise_levels: Array, total_power: float):
     mu = inverse_sorted[bot] + (total_power - P[bot]) / (bot + 1)
     return mu
 
+@jax.jit
+def waterfilling_implicit(noise_levels: Array, total_power: float):
+    '''
+    Code courtesy of Noam Smilovich. 
+    '''
+    safe_noise = jnp.maximum(noise_levels, tol)
+
+    def f(mu):
+        return jnp.sum(jnp.maximum(0.0, mu - 1.0 / safe_noise)) - total_power
+    
+    initial_guess = 0.0
+    
+    def solve(f, initial_guess):
+        return waterfilling_solver(noise_levels, total_power)
+    
+    def tangent_solve(g, y):
+        return y/g(1.0)
+    
+    return jax.lax.custom_root(f, initial_guess, solve, tangent_solve)
+
 def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
 
     F = compute_F(dyn, xt, U)
     S = einsum(F, F, 'x1 T u, x2 T u -> x1 x2')
     h2 = jnp.linalg.eigvalsh(S)
-    v = waterfilling_solver(h2, P)
+    v = waterfilling_implicit(h2, P)
     p = jnp.maximum(jnp.array(0.0), v - 1 / h2)
     e = 0.5 * jnp.sum(jnp.log(1 + p * h2))
     return e
+
+compute_empowerment = jax.jit(compute_empowerment, static_argnums = 0)
+compute_empowerment_grad = jax.jit(jax.jacfwd(compute_empowerment, argnums = 1), static_argnums = 0)

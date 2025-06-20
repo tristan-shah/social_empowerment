@@ -5,21 +5,16 @@ from mujoco import mjx
 import matplotlib.pyplot as plt
 
 from soc_emp import Dynamics
-from soc_emp.empowerment import compute_empowerment, unroll
+from soc_emp.empowerment import compute_empowerment, compute_empowerment_grad
 
 if __name__ == '__main__':
     xml_path = 'xml/pendulum.xml'
     dyn = Dynamics(path = xml_path)
 
-    x0 = jnp.zeros((dyn.state_dim,))
-    x0 = x0.at[0].set(-3.1)
-
-    T = 10
+    T = 30
     P = 1.0
 
     U = jnp.zeros((T, dyn.control_dim))
-
-    E = jax.jit(jax.jacfwd(compute_empowerment, argnums = 1), static_argnums = 0)
 
     resolution = 50
     theta = jnp.linspace(0.0, 2 * jnp.pi, resolution)
@@ -32,12 +27,13 @@ if __name__ == '__main__':
         for j in range(len(theta_dot)):
             x0 = jnp.array([theta[i], theta_dot[j]])
 
-            grad_e = E(dyn, x0, U, P)
+            grad_e = compute_empowerment_grad(dyn, x0, U, P)
             grad_E = grad_E.at[i, j].set(grad_e)
 
             e = compute_empowerment(dyn, x0, U, P)
             empowerment_landscape = empowerment_landscape.at[i, j].set(e)
             print(i, j, e, grad_e)
+            # print(i, j, e)
 
 
     Theta, Theta_dot = jnp.meshgrid(theta, theta_dot, indexing = 'ij')
@@ -58,11 +54,8 @@ if __name__ == '__main__':
     grad_theta_dot = grad_theta_dot / norm * norm_clamped
 
 
-
-
-
     fig, ax = plt.subplots(1, 1)
-    ax.set_title(f'Horizon = {T} Empowerment Landscape')
+    ax.set_title(f'MuJoCo Empowerment Landscape Horizon = {T}')
     ax.set_xlabel('Theta')
     ax.set_ylabel('Theta Dot')
     fig.colorbar(
@@ -75,9 +68,7 @@ if __name__ == '__main__':
             )
         )
 
-
-
-    # Gradient field (vector field)
+    ## Gradient field (vector field)
     ax.quiver(
         Theta,
         Theta_dot,

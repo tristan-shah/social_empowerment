@@ -6,7 +6,7 @@ from mujoco import mjx
 import matplotlib.pyplot as plt
 
 from soc_emp.dynamics import Dynamics
-from soc_emp.ilqr import TrajectoryOptimizer, ModelPredictiveController
+from soc_emp.ilqr import TrajectoryOptimizer
 
 def compute_error(X: Array):
     goal = jnp.zeros_like(X)

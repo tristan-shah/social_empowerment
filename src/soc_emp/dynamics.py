@@ -2,16 +2,17 @@ from typing import Optional
 
 import mujoco
 from mujoco import mjx
+from mujoco.mjx import Data
 import jax
+# Enable higher precision (critical for second derivatives)
+jax.config.update('jax_enable_x64', True)
+jax.config.update('jax_traceback_filtering', 'off')
+
 from jax import numpy as jnp
 from jax import Array
 import imageio
 
-from soc_emp.utils import split_state
-
-# Enable higher precision (critical for second derivatives)
-jax.config.update('jax_enable_x64', True)
-jax.config.update('jax_traceback_filtering', 'off')
+from soc_emp.utils import split_state, get_state
 
 class Dynamics:
     def __init__(self, path: Optional[str] = None, string: Optional[str] = None):
@@ -34,14 +35,27 @@ class Dynamics:
         self.mjx_step = jax.jit(mjx.step)
         self.linearize = jax.jit(jax.jacfwd(self.step, argnums = (0, 1)))
 
+    def init_state(self, data: Optional[Data] = None):
+        
+        if data is None:
+            data = mjx.make_data(self.mjx_model)
+
+        return jnp.concatenate([data.qpos, data.qvel * 0.0])
+
     def step(self, xt: Array, ut: Array):
         qpos, qvel = split_state(xt, self.nq)
         mjx_data = mjx.make_data(self.mjx_model).replace(qpos = qpos, qvel = qvel, ctrl = ut)
         mjx_data = self.mjx_step(self.mjx_model, mjx_data)
-        return jnp.concatenate([mjx_data.qpos, mjx_data.qvel])
+        return get_state(mjx_data)
+
+    def step_data(self, data: Data, xt: Array, ut: Array):
+        qpos, qvel = split_state(xt, self.nq)
+        data = data.replace(qpos = qpos, qvel = qvel, ctrl = ut)
+        data = self.mjx_step(self.mjx_model, data)
+        return data, get_state(data)
     
     def render(
-            self, 
+            self,
             X: Array, 
             path: str,
             lookat: Array = jnp.array([0.0, 0.0, 1.0]),
