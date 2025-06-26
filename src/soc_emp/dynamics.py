@@ -76,7 +76,7 @@ class Dynamics:
         data = mujoco.MjData(self.model)
         writer = imageio.get_writer(path, fps = 60)
 
-        for t in range(X.shape[0]):
+        for t in range(0, X.shape[0], 5):
 
             data.qpos, data.qvel = split_state(X[t], self.nq)
             mujoco.mj_forward(self.model, data)
@@ -86,4 +86,4 @@ class Dynamics:
 
         renderer.close()
         writer.close()
-        return
+        return None

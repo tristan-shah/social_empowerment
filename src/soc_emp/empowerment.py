@@ -1,7 +1,7 @@
 import jax
 from jax import Array
 from jax import numpy as jnp
-from einops import einsum
+from einops import einsum, rearrange
 
 from soc_emp import Dynamics
 
@@ -90,3 +90,57 @@ def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
 
 compute_empowerment = jax.jit(compute_empowerment, static_argnums = 0)
 compute_empowerment_grad = jax.jit(jax.jacfwd(compute_empowerment, argnums = 1), static_argnums = 0)
+
+
+# def build_noise_matrix(F_agent: Array):
+#     '''
+#     Constructs a matrix for each agent where its own sensitivity is zeroed and the rest are treated as noise.
+#     Interprets the first dimention of H_agent as the number of agents.
+
+#     Args:
+#     H_agent: (num_agents x output x input)
+#     '''
+#     num_agents = H_agent.shape[0]
+
+#     ## for each agent, the effect of all other agents is considered noise
+#     H_noise = H_agent.unsqueeze(0).repeat(num_agents, 1, 1, 1)
+
+#     ## for each agent zero out its own effect
+#     for agent in range(num_agents):
+#         H_noise[agent, agent, :, :] *= 0.0
+
+#     return H_noise
+
+def split_channel_matrix(F: Array, num_agents: int):
+    '''
+    Takes in a large channel matrix and splits it into two components:
+    1.) A channel matrix which sends an agents actions to the big state
+    2.) All other channel matrices interpreted as noise for the i'th agent
+
+    We assume that each agent has the same action dimentionality. 
+    For example all agents would have u \in R^2.
+
+    Args:
+    F: Channel matrix with size (combined state x time x all actions)
+
+    Returns:
+    F_agent: (agents x big state x message) sensitivity matrix of big state to agents own actions.
+    F_noise: (agents x agents x big state x message) sensitivity of big state to all other agents actions.
+    '''
+
+    assert F.shape[2] % num_agents == 0
+    # du = F.shape[2] // num_agents
+
+    F_agent = jnp.split(F, num_agents, axis = 2)
+    F_agent = jnp.stack(F_agent, axis = 0)
+    F_agent = rearrange(F_agent, 'a x t u -> a x (t u)') ## collapse the action dimention into time
+
+    ## for each agent, the effect of all other agents is considered noise
+    F_noise = F_agent[None, :, :, :].repeat(num_agents, axis = 0)
+
+    # Create a mask with ones everywhere, except zeros on the diagonal
+    mask = jnp.ones_like(F_noise)
+    mask = mask.at[jnp.arange(num_agents), jnp.arange(num_agents)].set(0.0)
+    F_noise = F_noise * mask
+
+    return F_agent, F_noise
