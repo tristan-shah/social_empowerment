@@ -78,38 +78,22 @@ def waterfilling_implicit(noise_levels: Array, total_power: float):
     
     return jax.lax.custom_root(f, initial_guess, solve, tangent_solve)
 
+def compute_power(water_line: Array, eigs: Array):
+    return jnp.clip(water_line - 1 / eigs, min = 0.0)
+
 def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
 
     F = compute_F(dyn, xt, U)
     S = einsum(F, F, 'x1 T u, x2 T u -> x1 x2')
     h2 = jnp.linalg.eigvalsh(S)
     v = waterfilling_implicit(h2, P)
-    p = jnp.maximum(jnp.array(0.0), v - 1 / h2)
+    # p = jnp.maximum(jnp.array(0.0), v - 1 / h2)
+    p = compute_power(v, h2)
     e = 0.5 * jnp.sum(jnp.log(1 + p * h2))
     return e
 
 compute_empowerment = jax.jit(compute_empowerment, static_argnums = 0)
 compute_empowerment_grad = jax.jit(jax.jacfwd(compute_empowerment, argnums = 1), static_argnums = 0)
-
-
-# def build_noise_matrix(F_agent: Array):
-#     '''
-#     Constructs a matrix for each agent where its own sensitivity is zeroed and the rest are treated as noise.
-#     Interprets the first dimention of H_agent as the number of agents.
-
-#     Args:
-#     H_agent: (num_agents x output x input)
-#     '''
-#     num_agents = H_agent.shape[0]
-
-#     ## for each agent, the effect of all other agents is considered noise
-#     H_noise = H_agent.unsqueeze(0).repeat(num_agents, 1, 1, 1)
-
-#     ## for each agent zero out its own effect
-#     for agent in range(num_agents):
-#         H_noise[agent, agent, :, :] *= 0.0
-
-#     return H_noise
 
 def split_channel_matrix(F: Array, num_agents: int):
     '''
@@ -144,18 +128,32 @@ def split_channel_matrix(F: Array, num_agents: int):
 
     return F_agent, F_noise
 
-diag_embed = jax.jit(jax.vmap(jnp.diag))
+batch_diag = jax.jit(jax.vmap(jnp.diag))
+batch_water_filling = jax.jit(jax.vmap(waterfilling_implicit))
+batch_compute_power = jax.jit(jax.vmap(compute_power))
 
-def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array):
+def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, power: Array):
 
-    num_agents, state_dim, message_dim = F_agent.shape
     S_noise = einsum(F_noise, S, F_noise, 'a1 a2 x1 m1, a2 m1 m2, a1 a2 x2 m2 -> a1 x1 x2') + S_z
 
     ## eigen-decomp on noise
     D, Q = jnp.linalg.eigh(S_noise)
-    # D_inv_sqrt = torch.diag_embed(D**-0.5)
-    D = diag_embed(D)
+    D_inv_sqrt = batch_diag(D ** -0.5)
 
-    print(D)
+    ## compute new channel matrix D @ Q.T @ F_agent
+    H = einsum(D_inv_sqrt, Q, F_agent, 'a x1 x2, a x3 x2, a x3 m -> a x1 m')
 
-    return
+    ## compute snr levels
+    _, E, M = jnp.linalg.svd(H, full_matrices = False)
+    eigs = E ** 2
+
+    nu = batch_water_filling(eigs, power)
+    p = batch_compute_power(nu, eigs)
+    
+    ## update covariances
+    P = batch_diag(p)
+    S = einsum(M, P, M, 'a x1 m1, a x1 x2, a x2 m2 -> a m1 m2')
+
+    ## channel capacities
+    e = 0.5 * jnp.sum(jnp.log(1 + p * eigs), axis = 1)
+    return e, S

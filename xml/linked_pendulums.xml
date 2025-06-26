@@ -51,7 +51,7 @@
     </worldbody>
 
     <tendon>
-        <spatial name="spring_0_1" stiffness="10" damping="0" springlength="1.0" rgba="1 1 0 1">
+        <spatial name="spring_0_1" stiffness="1" damping="0" springlength="1.0" rgba="1 1 0 1">
             <site site="site:0"/>
             <site site="site:1"/>
         </spatial>
