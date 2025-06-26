@@ -127,10 +127,9 @@ def split_channel_matrix(F: Array, num_agents: int):
     F_agent: (agents x big state x message) sensitivity matrix of big state to agents own actions.
     F_noise: (agents x agents x big state x message) sensitivity of big state to all other agents actions.
     '''
-
     assert F.shape[2] % num_agents == 0
-    # du = F.shape[2] // num_agents
 
+    ## chunking the channel matrix along the action dimention to split the effect of each agent
     F_agent = jnp.split(F, num_agents, axis = 2)
     F_agent = jnp.stack(F_agent, axis = 0)
     F_agent = rearrange(F_agent, 'a x t u -> a x (t u)') ## collapse the action dimention into time
@@ -138,9 +137,25 @@ def split_channel_matrix(F: Array, num_agents: int):
     ## for each agent, the effect of all other agents is considered noise
     F_noise = F_agent[None, :, :, :].repeat(num_agents, axis = 0)
 
-    # Create a mask with ones everywhere, except zeros on the diagonal
+    ## create a mask with ones everywhere, except zeros on the diagonal
     mask = jnp.ones_like(F_noise)
     mask = mask.at[jnp.arange(num_agents), jnp.arange(num_agents)].set(0.0)
     F_noise = F_noise * mask
 
     return F_agent, F_noise
+
+diag_embed = jax.jit(jax.vmap(jnp.diag))
+
+def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array):
+
+    num_agents, state_dim, message_dim = F_agent.shape
+    S_noise = einsum(F_noise, S, F_noise, 'a1 a2 x1 m1, a2 m1 m2, a1 a2 x2 m2 -> a1 x1 x2') + S_z
+
+    ## eigen-decomp on noise
+    D, Q = jnp.linalg.eigh(S_noise)
+    # D_inv_sqrt = torch.diag_embed(D**-0.5)
+    D = diag_embed(D)
+
+    print(D)
+
+    return
