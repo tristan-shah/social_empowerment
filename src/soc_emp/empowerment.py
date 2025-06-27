@@ -87,7 +87,6 @@ def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
     S = einsum(F, F, 'x1 T u, x2 T u -> x1 x2')
     h2 = jnp.linalg.eigvalsh(S)
     v = waterfilling_implicit(h2, P)
-    # p = jnp.maximum(jnp.array(0.0), v - 1 / h2)
     p = compute_power(v, h2)
     e = 0.5 * jnp.sum(jnp.log(1 + p * h2))
     return e
@@ -138,14 +137,14 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
 
     ## eigen-decomp on noise
     D, Q = jnp.linalg.eigh(S_noise)
-    D_inv_sqrt = batch_diag(D ** -0.5)
+    D_inv_sqrt = batch_diag((D + 1e-12) ** -0.5)
 
-    ## compute new channel matrix D @ Q.T @ F_agent
+    ## compute new channel matrix (1/\sqrt{D}) @ Q.T @ F_agent
     H = einsum(D_inv_sqrt, Q, F_agent, 'a x1 x2, a x3 x2, a x3 m -> a x1 m')
 
     ## compute snr levels
     _, E, M = jnp.linalg.svd(H, full_matrices = False)
-    eigs = E ** 2
+    eigs = jnp.power(E, 2.0).clip(min = 1e-12)
 
     nu = batch_water_filling(eigs, power)
     p = batch_compute_power(nu, eigs)
@@ -155,5 +154,57 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     S = einsum(M, P, M, 'a x1 m1, a x1 x2, a x2 m2 -> a m1 m2')
 
     ## channel capacities
-    e = 0.5 * jnp.sum(jnp.log(1 + p * eigs), axis = 1)
+    e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
+
+def compute_multiagent_empowerment(
+        dyn: Dynamics, 
+        x0: Array, 
+        U: Array, 
+        power: Array, 
+        iterations: int, 
+        alpha: float,
+        key):
+
+    num_agents = len(power)
+    horizon = U.shape[0]
+    dx = dyn.state_dim
+    du = dyn.control_dim // num_agents
+    dm = du * horizon
+
+    S = jnp.zeros((num_agents, dm, dm))
+    # S = batch_diag( jax.random.uniform(key, (num_agents, dm) ))
+    S_z = jnp.eye(dx) + jnp.diag(jax.random.normal(key, (dx))) * 1e-5
+    # S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
+
+    F = compute_F(dyn, x0, U)
+    F_agent, F_noise = split_channel_matrix(F, num_agents)
+
+    # ## egoistic
+    # F_agent = jnp.stack([
+    #     F_agent[0, [0, 2], :],
+    #     F_agent[1, [1, 3], :]
+    #     ], axis = 0)
+
+    # F_noise = jnp.stack([
+    #     F_noise[0, :, [0, 2], :],
+    #     F_noise[1, :, [1, 3], :]
+    # ], axis = 0)
+
+
+    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    S = alpha * S + (1 - alpha) * S_
+
+    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    S = alpha * S + (1 - alpha) * S_
+
+    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    S = alpha * S + (1 - alpha) * S_
+
+    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    S = alpha * S + (1 - alpha) * S_
+
+    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    S = alpha * S + (1 - alpha) * S_
+
+    return e#, e_hist, S, F_agent, F_noise

@@ -61,7 +61,8 @@ class Dynamics:
             lookat: Array = jnp.array([0.0, 0.0, 1.0]),
             distance: float = 3.0,
             azimuth: float = 90.0,
-            elevation: float = 0.0
+            elevation: float = 0.0,
+            k: int = 5
             ):
 
         renderer = mujoco.Renderer(self.model, height = 720, width = 1280)
@@ -76,7 +77,7 @@ class Dynamics:
         data = mujoco.MjData(self.model)
         writer = imageio.get_writer(path, fps = 60)
 
-        for t in range(0, X.shape[0], 5):
+        for t in range(0, X.shape[0], k):
 
             data.qpos, data.qvel = split_state(X[t], self.nq)
             mujoco.mj_forward(self.model, data)

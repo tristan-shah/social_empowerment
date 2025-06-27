@@ -11,16 +11,13 @@ if __name__ == '__main__':
     ## simulation horizon
     empowerment_horizon = 50
     max_power = 1.0
-    T = 1000
+    T = 1500
 
     ## load in xml
     xml_path = 'xml/pendulum.xml'
-    # xml_path = 'xml/cell/scene.xml'
-    # xml_path = 'xml/blob.xml'
     dyn = Dynamics(path = xml_path)
 
     ## initialize state
-    # xt = jnp.concatenate([mjx.make_data(dyn.mjx_model).qpos, jnp.zeros(dyn.nv)])
     xt = dyn.init_state()
 
     ## tensor for state storage
@@ -29,8 +26,6 @@ if __name__ == '__main__':
 
     ## zero control planning horizon
     U = jnp.zeros((empowerment_horizon, dyn.control_dim))
-    # F = compute_F(dyn, xt, U)
-    # print(F.shape)
 
     empowerment_hist = []
     for t in range(T):
