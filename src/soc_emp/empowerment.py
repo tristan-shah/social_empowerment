@@ -7,6 +7,10 @@ from soc_emp import Dynamics
 
 tol = 1e-6
 
+@jax.jit
+def compute_power(water_line: Array, eigs: Array):
+    return jnp.clip(water_line - 1 / eigs, min = 0.0)
+
 def unroll(dyn: Dynamics, xt: Array, U: Array):
     '''
     Jax compatable simulation loop.
@@ -20,6 +24,7 @@ def unroll(dyn: Dynamics, xt: Array, U: Array):
 
     return xt
 
+unroll = jax.jit(unroll, static_argnums = 0)
 compute_F = jax.jit(jax.jacfwd(unroll, argnums = 2), static_argnums = 0)
 
 @jax.jit
@@ -66,7 +71,8 @@ def waterfilling_implicit(noise_levels: Array, total_power: float):
     safe_noise = jnp.maximum(noise_levels, tol)
 
     def f(mu):
-        return jnp.sum(jnp.maximum(0.0, mu - 1.0 / safe_noise)) - total_power
+        # return jnp.sum(jnp.maximum(0.0, mu - 1.0 / safe_noise)) - total_power
+        return jnp.sum(compute_power(mu, safe_noise)) - total_power
     
     initial_guess = 0.0
     
@@ -77,9 +83,6 @@ def waterfilling_implicit(noise_levels: Array, total_power: float):
         return y/g(1.0)
     
     return jax.lax.custom_root(f, initial_guess, solve, tangent_solve)
-
-def compute_power(water_line: Array, eigs: Array):
-    return jnp.clip(water_line - 1 / eigs, min = 0.0)
 
 def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
 
@@ -94,6 +97,7 @@ def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
 compute_empowerment = jax.jit(compute_empowerment, static_argnums = 0)
 compute_empowerment_grad = jax.jit(jax.jacfwd(compute_empowerment, argnums = 1), static_argnums = 0)
 
+# @jax.jit
 def split_channel_matrix(F: Array, num_agents: int):
     '''
     Takes in a large channel matrix and splits it into two components:
@@ -110,7 +114,7 @@ def split_channel_matrix(F: Array, num_agents: int):
     F_agent: (agents x big state x message) sensitivity matrix of big state to agents own actions.
     F_noise: (agents x agents x big state x message) sensitivity of big state to all other agents actions.
     '''
-    assert F.shape[2] % num_agents == 0
+    # assert F.shape[2] % num_agents == 0
 
     ## chunking the channel matrix along the action dimention to split the effect of each agent
     F_agent = jnp.split(F, num_agents, axis = 2)
@@ -131,6 +135,7 @@ batch_diag = jax.jit(jax.vmap(jnp.diag))
 batch_water_filling = jax.jit(jax.vmap(waterfilling_implicit))
 batch_compute_power = jax.jit(jax.vmap(compute_power))
 
+@jax.jit
 def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, power: Array):
 
     S_noise = einsum(F_noise, S, F_noise, 'a1 a2 x1 m1, a2 m1 m2, a1 a2 x2 m2 -> a1 x1 x2') + S_z
@@ -162,7 +167,6 @@ def compute_multiagent_empowerment(
         x0: Array, 
         U: Array, 
         power: Array, 
-        iterations: int, 
         alpha: float,
         key):
 
@@ -173,25 +177,26 @@ def compute_multiagent_empowerment(
     dm = du * horizon
 
     S = jnp.zeros((num_agents, dm, dm))
-    # S = batch_diag( jax.random.uniform(key, (num_agents, dm) ))
     S_z = jnp.eye(dx) + jnp.diag(jax.random.normal(key, (dx))) * 1e-5
-    # S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
 
     F = compute_F(dyn, x0, U)
     F_agent, F_noise = split_channel_matrix(F, num_agents)
 
-    # ## egoistic
-    # F_agent = jnp.stack([
-    #     F_agent[0, [0, 2], :],
-    #     F_agent[1, [1, 3], :]
-    #     ], axis = 0)
+    ## egoistic
+    S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
+    F_agent = jnp.stack([
+        F_agent[0, [0, 2], :],
+        F_agent[1, [1, 3], :]
+        ], axis = 0)
 
-    # F_noise = jnp.stack([
-    #     F_noise[0, :, [0, 2], :],
-    #     F_noise[1, :, [1, 3], :]
-    # ], axis = 0)
+    F_noise = jnp.stack([
+        F_noise[0, :, [0, 2], :],
+        F_noise[1, :, [1, 3], :]
+    ], axis = 0)
 
-
+    '''
+    Explicit iteration
+    '''
     e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
     S = alpha * S + (1 - alpha) * S_
 
@@ -207,4 +212,7 @@ def compute_multiagent_empowerment(
     e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
     S = alpha * S + (1 - alpha) * S_
 
-    return e#, e_hist, S, F_agent, F_noise
+    return e
+
+compute_multiagent_empowerment = jax.jit(compute_multiagent_empowerment, static_argnums = 0)
+compute_multiagent_empowerment_grad = jax.jit(jax.jacfwd(compute_multiagent_empowerment, argnums = 1), static_argnums = 0)

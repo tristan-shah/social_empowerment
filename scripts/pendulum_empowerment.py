@@ -14,7 +14,7 @@ if __name__ == '__main__':
     T = 1500
 
     ## load in xml
-    xml_path = 'xml/pendulum.xml'
+    xml_path = 'xml/custom/pendulum.xml'
     dyn = Dynamics(path = xml_path)
 
     ## initialize state

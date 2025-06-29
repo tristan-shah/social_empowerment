@@ -5,8 +5,7 @@
     </visual>
 
     <compiler angle="radian"/>
-    <!-- <option integrator="RK4" timestep="0.025" gravity="0 0 -9.81"/> -->
-    <option timestep="0.01" gravity="0 0 -9.81"/>
+    <option integrator="implicitfast" timestep="0.01" gravity="0 0 -9.81"/>
 
     <asset>
         <texture type="skybox" builtin="gradient" rgb1="0.6 0.7 0.9" rgb2="0.3 0.3 0.4" width="512" height="3072"/>
@@ -53,14 +52,13 @@
 
     <tendon>
         <spatial name="spring_0_1" stiffness="3.0" damping="0.1" springlength="1.0" rgba="1 1 0 1">
-        <!-- <spatial name="spring_0_1" stiffness="5.0" damping="0.1" springlength="1.0" rgba="1 1 0 1"> -->
             <site site="site:0"/>
             <site site="site:1"/>
         </spatial>
     </tendon>
 
     <actuator>
-        <motor joint="hinge:0" ctrlrange="-1 1" gear="1"/>
-        <motor joint="hinge:1" ctrlrange="-1 1" gear="1"/>
+        <motor joint="hinge:0" gear="1"/>
+        <motor joint="hinge:1" gear="1"/>
     </actuator>
 </mujoco>
