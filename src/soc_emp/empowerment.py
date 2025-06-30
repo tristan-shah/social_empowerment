@@ -197,22 +197,53 @@ def compute_multiagent_empowerment(
     '''
     Explicit iteration
     '''
-    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    S = alpha * S + (1 - alpha) * S_
 
-    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    S = alpha * S + (1 - alpha) * S_
+    max_iter = 10
 
-    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    S = alpha * S + (1 - alpha) * S_
+    def cond_fun(state):
+        i, S, e, e_prev = state
+        return jnp.logical_and(
+            # jnp.any(jnp.abs(e - e_prev) > 1e-10),
+            jnp.any(jnp.abs(e - e_prev) > 1e-5),
+            i < max_iter
+        )
 
-    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    S = alpha * S + (1 - alpha) * S_
+    def body_fun(state):
+        i, S, e, e_prev = state
+        e_prev = e
+        e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+        S = alpha * S + (1 - alpha) * S_
+        return (i + 1, S, e, e_prev)
 
-    e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    S = alpha * S + (1 - alpha) * S_
+    e_prev = jnp.ones(num_agents) * jnp.inf
+    e = jnp.zeros(num_agents)
+    i, S, e, e_prev = jax.lax.while_loop(cond_fun, body_fun, (0, S, e, e_prev))
 
-    return e
+    return i, e
+
+    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    # S = alpha * S + (1 - alpha) * S_
+
+    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    # S = alpha * S + (1 - alpha) * S_
+
+    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    # S = alpha * S + (1 - alpha) * S_
+
+    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    # S = alpha * S + (1 - alpha) * S_
+
+    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    # S = alpha * S + (1 - alpha) * S_
+
+    # return e
+
+def select_output(f, index):
+    return lambda *args, **kwargs: f(*args, **kwargs)[index]
 
 compute_multiagent_empowerment = jax.jit(compute_multiagent_empowerment, static_argnums = 0)
-compute_multiagent_empowerment_grad = jax.jit(jax.jacfwd(compute_multiagent_empowerment, argnums = 1), static_argnums = 0)
+compute_multiagent_empowerment_grad = jax.jit(
+    jax.jacfwd(
+        select_output(compute_multiagent_empowerment, 1), 
+        argnums = 1), 
+    static_argnums = 0)

@@ -51,9 +51,10 @@ if __name__ == '__main__':
     ## plotting the empowerment over time
     fig, ax = plt.subplots(1, 1)
     ax.set_xlabel('Timestep')
-    ax.set_ylabel('Empowerment (nats)')
+    ax.set_ylabel('Empowerment')
     ax.plot(empowerment_hist)
-    plt.show()
+    fig.tight_layout()
+    fig.savefig(f'pendulum_empowerment.png', dpi = 300)
 
     ## render an animation
     dyn.render(X, path = 'pendulum_empowerment.mp4')

@@ -1,10 +1,12 @@
+import os
+os.environ['MUJOCO_GL'] = 'osmesa'
 from typing import Optional
 
 import mujoco
 from mujoco import mjx
 from mujoco.mjx import Data
 import jax
-# Enable higher precision (critical for second derivatives)
+## Enable higher precision (critical for second derivatives)
 jax.config.update('jax_enable_x64', True)
 jax.config.update('jax_traceback_filtering', 'off')
 
