@@ -22,13 +22,13 @@ def compute_pendulum_error(X: Array):
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
-    xml_path = 'xml/pendulum.xml'
+    xml_path = 'xml/custom/pendulum.xml'
     dyn = Dynamics(path = xml_path)
 
     x0 = jnp.zeros((dyn.state_dim,))
     x0 = x0.at[0].set(0.0)
 
-    T = 400
+    T = 1000
     Q = jnp.eye(dyn.state_dim)
     R = jnp.eye(dyn.control_dim) * 0.005
     Q = Q.at[1, 1].set(0.01)
@@ -51,7 +51,6 @@ if __name__ == '__main__':
         J, X, U, A, B = opt.update(x0, X, U, A, B)
         print(i, J)
         cost.append(J)
-    
 
     fig, ax = plt.subplots(1, 2)
 
