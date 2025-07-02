@@ -1,7 +1,4 @@
 <mujoco model="barkour_vb">
-  <visual>
-      <global offheight="720" offwidth="1280"/>
-  </visual>
   
   <compiler angle="radian" autolimits="true"/>
 

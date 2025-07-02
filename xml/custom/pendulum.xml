@@ -1,8 +1,8 @@
 <mujoco model="pendulum">
 
-    <visual>
+    <!-- <visual>
         <global offheight="720" offwidth="1280"/>
-    </visual>
+    </visual> -->
 
     <compiler angle="radian"/>
     <option integrator="implicitfast" timestep="0.01" gravity="0 0 -9.81"/>

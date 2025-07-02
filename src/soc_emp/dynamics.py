@@ -23,9 +23,14 @@ class Dynamics:
 
         ## store original mujoco model
         if path is not None:
-            self.model = mujoco.MjModel.from_xml_path(path)
+            model = mujoco.MjModel.from_xml_path(path)
         elif string is not None:
-            self.model = mujoco.MjModel.from_xml_string(string)
+            model = mujoco.MjModel.from_xml_string(string)
+
+        model.opt.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
+        model.vis.global_.offheight = 720
+        model.vis.global_.offwidth = 1280
+        self.model = model
 
         ## create mjx model
         self.mjx_model = mjx.put_model(self.model)
@@ -37,12 +42,8 @@ class Dynamics:
         self.control_dim = self.mjx_model.nu
 
         ## jit the jax step function
-        # self.mjx_step = jax.jit(mjx.step)
         self.step = jax.jit(self._step)
         self.linearize = jax.jit(jax.jacfwd(self.step, argnums = (0, 1)))
-
-        # self.unroll = jax.jit(self._unroll)
-        # self.compute_F = jax.jit(jax.jacfwd(self.unroll, argnums = 1))
 
     def init_state(self):
         mjx_data = mjx.make_data(self.mjx_model)
@@ -51,21 +52,8 @@ class Dynamics:
     def _step(self, xt: Array, ut: Array):
         qpos, qvel = split_state(xt, self.nq)
         mjx_data = mjx.make_data(self.mjx_model).replace(qpos = qpos, qvel = qvel, ctrl = ut)
-        
-        # mjx_data = self._mjx_data.replace(qpos = qpos, qvel = qvel, ctrl = ut)
-        # mjx_data = self.mjx_step(self.mjx_model, mjx_data)
-        
         mjx_data = mjx.step(self.mjx_model, mjx_data)
-        
         return get_state(mjx_data)
-    
-    # def _unroll(self, x0: Array, U: Array):
-
-    #     def body_fun(xt_: Array, ut_: Array):
-    #         xt_next = self.step(xt_, ut_)
-    #         return xt_next, xt_next
-        
-    #     return jax.lax.scan(body_fun, x0, U)[0]
         
     def render(
             self,

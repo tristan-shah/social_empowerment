@@ -1,7 +1,7 @@
 <mujoco model="blob">
-    <visual>
+    <!-- <visual>
         <global offheight="720" offwidth="1280"/>
-    </visual>
+    </visual> -->
 
     <option integrator="implicitfast" timestep="0.05" gravity="0 0 -9.81"/>
 
