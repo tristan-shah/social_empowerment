@@ -11,7 +11,7 @@ if __name__ == '__main__':
     print(jax.devices())
 
     T = 2000
-    empowerment_horizon = 200
+    empowerment_horizon = 100
     max_power = 1.0
 
     dyn = Dynamics(path = 'xml/custom/blob_hill.xml')
