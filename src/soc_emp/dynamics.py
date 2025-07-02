@@ -1,5 +1,5 @@
 import os
-# os.environ['MUJOCO_GL'] = 'osmesa'
+os.environ['MUJOCO_GL'] = 'egl'
 from typing import Optional
 
 import mujoco

@@ -1,9 +1,5 @@
 import jax
-from jax import Array
 from jax import numpy as jnp
-from einops import einsum
-from mujoco import mjx
-
 import matplotlib.pyplot as plt
 
 from soc_emp.dynamics import Dynamics
@@ -12,11 +8,15 @@ from soc_emp.empowerment import compute_empowerment, compute_empowerment_grad
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
-    T = 1000
-    empowerment_horizon = 20
+    print(jax.devices())
+
+    T = 2000
+    empowerment_horizon = 200
     max_power = 1.0
 
     dyn = Dynamics(path = 'xml/custom/blob_hill.xml')
+
+    name = f'two_hills_horizon={empowerment_horizon}-dt={dyn.model.opt.timestep}'
     
     ## initialize state
     xt = dyn.init_state()
@@ -42,7 +42,6 @@ if __name__ == '__main__':
         empowerment_hist.append(e)
 
         # ut = jnp.zeros(dyn.control_dim)
-
         # print(t, xt, ut)
         print(t, xt, ut, e)
 
@@ -52,19 +51,19 @@ if __name__ == '__main__':
         ## log state
         X = X.at[t+1].set(xt)
 
-    ## plotting the empowerment over time
+    # plotting the empowerment over time
     fig, ax = plt.subplots(1, 1)
     ax.set_xlabel('Timestep')
     ax.set_ylabel('Empowerment')
     ax.plot(empowerment_hist)
     fig.tight_layout()
-    fig.savefig(f'blob_emp.png', dpi = 300)
+    fig.savefig(name + '.png', dpi = 300)
 
     ## render an animation
     dyn.render(
         X, 
-        path = 'blob_emp.mp4', 
+        path = name + '.mp4',
         skip = 1, 
-        lookat = jnp.array([2.5, 0.0, 0.5]),
+        lookat = jnp.array([0.0, 0.0, 0.5]),
         elevation = -10,
-        distance = 5.0)
+        distance = 8.0)
