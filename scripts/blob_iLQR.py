@@ -17,7 +17,7 @@ def compute_error(X: Array):
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
-    dyn = Dynamics(path = 'xml/blob.xml')
+    dyn = Dynamics(path = 'xml/custom/blob.xml')
 
     mjx_data = mjx.make_data(dyn.mjx_model)
     x0 = jnp.concatenate([mjx_data.qpos, mjx_data.qvel])
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     A, B = opt.batch_linearize(X[:-1], U)
 
     cost = []
-    for i in range(10):
+    for i in range(15):
         J, X, U, A, B = opt.update(x0, X, U, A, B)
         print(i, J)
         cost.append(J)
@@ -43,9 +43,10 @@ if __name__ == '__main__':
     dyn.render(
         X, 
         path = 'ball.mp4', 
-        lookat = jnp.array([2.0, 0.0, 0.5]),
+        lookat = jnp.array([2.5, 0.0, 0.5]),
         elevation = -20.0,
-        distance = 5.0)
+        distance = 5.0,
+        skip = 1)
 
     fig, ax = plt.subplots(1, 2)
     fig.suptitle('iLQR Trajectory Optimization')
