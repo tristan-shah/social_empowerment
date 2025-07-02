@@ -20,12 +20,33 @@ def unroll(dyn: Dynamics, xt: Array, U: Array):
         xt_next = dyn.step(xt_, ut_)
         return xt_next, xt_next
     
-    xt, _ = jax.lax.scan(body_fun, xt, U)
+    _, X = jax.lax.scan(body_fun, xt, U)
+    return jnp.concatenate([xt[None, :], X])
 
-    return xt
-
+## jit compilation of the unroll function
 unroll = jax.jit(unroll, static_argnums = 0)
-compute_F = jax.jit(jax.jacfwd(unroll, argnums = 2), static_argnums = 0)
+
+def get_last_state(dyn: Dynamics, xt: Array, U: Array):
+    '''
+    Extracts the last state from the unroll function.
+    '''
+    return unroll(dyn, xt, U)[-1]
+
+## compute the gradient of the final state w.r.t each action.
+compute_F = jax.jit(jax.jacfwd(get_last_state, argnums = 2), static_argnums = 0)
+
+@jax.jit
+def compute_F_from_A_B(A: Array, B: Array):
+    
+    I = jnp.eye(A.shape[-1])
+
+    def body_fun(_I: Array, ab: tuple):
+        a, b = ab
+        return _I @ a, _I @ b
+
+    _, F = jax.lax.scan(body_fun, I, (A, B), reverse = True)
+
+    return F
 
 @jax.jit
 def waterfilling_solver(noise_levels: Array, total_power: float):
@@ -71,7 +92,6 @@ def waterfilling_implicit(noise_levels: Array, total_power: float):
     safe_noise = jnp.maximum(noise_levels, tol)
 
     def f(mu):
-        # return jnp.sum(jnp.maximum(0.0, mu - 1.0 / safe_noise)) - total_power
         return jnp.sum(compute_power(mu, safe_noise)) - total_power
     
     initial_guess = 0.0
@@ -85,8 +105,14 @@ def waterfilling_implicit(noise_levels: Array, total_power: float):
     return jax.lax.custom_root(f, initial_guess, solve, tangent_solve)
 
 def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
+    X = unroll(dyn, xt, U)
+    A, B = jax.vmap(dyn.linearize)(X[:-1], U)
+    F = compute_F_from_A_B(A, B)
+    F = jnp.permute_dims(F, (1, 0, 2))
 
-    F = compute_F(dyn, xt, U)
+    # F = compute_F(dyn, xt, U)
+
+    ## S is the covariance matrix of the final state.
     S = einsum(F, F, 'x1 T u, x2 T u -> x1 x2')
     h2 = jnp.linalg.eigvalsh(S)
     v = waterfilling_implicit(h2, P)
@@ -203,7 +229,6 @@ def compute_multiagent_empowerment(
     def cond_fun(state):
         i, S, e, e_prev = state
         return jnp.logical_and(
-            # jnp.any(jnp.abs(e - e_prev) > 1e-10),
             jnp.any(jnp.abs(e - e_prev) > 1e-5),
             i < max_iter
         )
@@ -220,23 +245,6 @@ def compute_multiagent_empowerment(
     i, S, e, e_prev = jax.lax.while_loop(cond_fun, body_fun, (0, S, e, e_prev))
 
     return i, e
-
-    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    # S = alpha * S + (1 - alpha) * S_
-
-    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    # S = alpha * S + (1 - alpha) * S_
-
-    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    # S = alpha * S + (1 - alpha) * S_
-
-    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    # S = alpha * S + (1 - alpha) * S_
-
-    # e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    # S = alpha * S + (1 - alpha) * S_
-
-    # return e
 
 def select_output(f, index):
     return lambda *args, **kwargs: f(*args, **kwargs)[index]

@@ -17,7 +17,14 @@ import imageio
 from soc_emp.utils import split_state, get_state
 
 class Dynamics:
-    def __init__(self, path: Optional[str] = None, string: Optional[str] = None):
+    '''
+    Static structure that assists with dynamics simulation and rendering.
+    '''
+    def __init__(
+            self, 
+            path: Optional[str] = None, 
+            string: Optional[str] = None, 
+            integrator: str = 'implicitfast'):
 
         assert (path is not None) != (string is not None)
 
@@ -27,14 +34,19 @@ class Dynamics:
         elif string is not None:
             model = mujoco.MjModel.from_xml_string(string)
 
-        model.opt.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
+        if integrator == 'implicitfast':
+            model.opt.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
+        elif integrator == 'euler':
+            model.opt.integrator = mujoco.mjtIntegrator.mjINT_EULER
+        else:
+            raise ValueError(f'Unknown integrator: {integrator}')
+
         model.vis.global_.offheight = 720
         model.vis.global_.offwidth = 1280
         self.model = model
 
         ## create mjx model
         self.mjx_model = mjx.put_model(self.model)
-        # self._mjx_data = mjx.make_data(self.model) ## allocate data once and do not modify
 
         self.nq = self.mjx_model.nq
         self.nv = self.mjx_model.nv

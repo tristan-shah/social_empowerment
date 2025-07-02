@@ -11,7 +11,7 @@ if __name__ == '__main__':
     ## simulation horizon
     empowerment_horizon = 50
     max_power = 1.0
-    T = 1500
+    T = 1000
 
     ## load in xml
     xml_path = 'xml/custom/pendulum.xml'

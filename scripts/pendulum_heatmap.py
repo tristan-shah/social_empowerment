@@ -8,10 +8,10 @@ from soc_emp import Dynamics
 from soc_emp.empowerment import compute_empowerment, compute_empowerment_grad
 
 if __name__ == '__main__':
-    xml_path = 'xml/pendulum.xml'
+    xml_path = 'xml/custom/pendulum.xml'
     dyn = Dynamics(path = xml_path)
 
-    T = 30
+    T = 50
     P = 1.0
 
     U = jnp.zeros((T, dyn.control_dim))
