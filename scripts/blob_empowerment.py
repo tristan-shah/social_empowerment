@@ -7,16 +7,15 @@ from soc_emp.empowerment import compute_empowerment, compute_empowerment_grad
 
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
-
     print(jax.devices())
 
-    T = 1000
+    T = 2000
     empowerment_horizon = 100
     max_power = 1.0
 
     dyn = Dynamics(path = 'xml/custom/blob.xml')
 
-    name = f'two_hills_horizon={empowerment_horizon}-dt={dyn.model.opt.timestep}'
+    name = f'flat_horizon={empowerment_horizon}-dt={dyn.model.opt.timestep}'
     
     ## initialize state
     xt = dyn.init_state()
@@ -43,6 +42,7 @@ if __name__ == '__main__':
 
         # ut = jnp.zeros(dyn.control_dim)
         # print(t, xt, ut)
+
         print(t, xt, ut, e)
 
         ## propagate dynamics
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     dyn.render(
         X, 
         path = name + '.mp4',
-        skip = 1, 
+        skip = 10, 
         lookat = jnp.array([0.0, 0.0, 0.5]),
         elevation = -10,
         distance = 8.0)
