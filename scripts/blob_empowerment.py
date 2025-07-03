@@ -10,11 +10,11 @@ if __name__ == '__main__':
 
     print(jax.devices())
 
-    T = 2000
+    T = 1000
     empowerment_horizon = 100
     max_power = 1.0
 
-    dyn = Dynamics(path = 'xml/custom/blob_hill.xml')
+    dyn = Dynamics(path = 'xml/custom/blob.xml')
 
     name = f'two_hills_horizon={empowerment_horizon}-dt={dyn.model.opt.timestep}'
     

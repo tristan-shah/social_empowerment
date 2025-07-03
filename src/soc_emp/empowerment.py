@@ -205,7 +205,12 @@ def compute_multiagent_empowerment(
     S = jnp.zeros((num_agents, dm, dm))
     S_z = jnp.eye(dx) + jnp.diag(jax.random.normal(key, (dx))) * 1e-5
 
-    F = compute_F(dyn, x0, U)
+    # F = compute_F(dyn, x0, U)
+    X = unroll(dyn, x0, U)
+    A, B = jax.vmap(dyn.linearize)(X[:-1], U)
+    F = compute_F_from_A_B(A, B)
+    F = jnp.permute_dims(F, (1, 0, 2))
+
     F_agent, F_noise = split_channel_matrix(F, num_agents)
 
     ## egoistic

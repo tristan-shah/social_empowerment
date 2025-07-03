@@ -4,7 +4,6 @@ from typing import Optional
 
 import mujoco
 from mujoco import mjx
-from mujoco.mjx import Data
 import jax
 ## Enable higher precision (critical for second derivatives)
 jax.config.update('jax_enable_x64', True)

@@ -17,8 +17,7 @@ def compute_error(X: Array):
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
-    # dyn = Dynamics(path = 'xml/custom/blob.xml')
-    dyn = Dynamics(path = 'xml/custom/blob_hill.xml')
+    dyn = Dynamics(path = 'xml/custom/blob_obsticle.xml')
 
     mjx_data = mjx.make_data(dyn.mjx_model)
     x0 = jnp.concatenate([mjx_data.qpos, mjx_data.qvel])
