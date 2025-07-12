@@ -28,17 +28,24 @@
                 friction="1 0.005 0.0001"/>
         </body>
 
-        <body name="goal_body" pos="1.0 0.0 0.1">
+        <!-- goal -->
+        <body name="goal_body" pos="-2.0 -1.0 0.1">
             <geom type="box" size="0.1 0.1 0.1" rgba="0 140 0 0.5" contype="0" conaffinity="0"/>
         </body>
         
     </worldbody>
 
     <actuator>
-        <!-- <motor joint="free_joint" name="torque_x" ctrlrange="-1 1" gear="0.5 0 0 0 0 0"/>
-        <motor joint="free_joint" name="torque_y" ctrlrange="-1 1" gear="0 0.5 0 0 0 0"/> -->
-
-        <motor joint="free_joint" name="torque_x" ctrlrange="-1 1" gear="0 0 0 0.5 0 0"/>
-        <motor joint="free_joint" name="torque_y" ctrlrange="-1 1" gear="0 0 0 0 0.5 0"/>
+        <!-- acceleration motors -->
+        <!-- <motor joint="free_joint" name="force_x" ctrlrange="-1 1" gear="1 0 0 0 0 0"/>
+        <motor joint="free_joint" name="force_y" ctrlrange="-1 1" gear="0 1 0 0 0 0"/> -->
+    
+        <!-- angular acceleration motors -->
+        <motor joint="free_joint" name="torque_x" ctrlrange="-1 1" gear="0 0 0 0.3 0 0"/>
+        <motor joint="free_joint" name="torque_y" ctrlrange="-1 1" gear="0 0 0 0 0.3 0"/>
     </actuator>
+
+    <keyframe>
+        <key name="home" qpos="0 0 0.1 1 0 0 0"/>
+    </keyframe>
 </mujoco>
