@@ -1,5 +1,5 @@
 import os
-os.environ['MUJOCO_GL'] = 'egl'
+# os.environ['MUJOCO_GL'] = 'egl'
 from typing import Optional
 
 import mujoco
@@ -23,7 +23,8 @@ class Dynamics:
             self, 
             path: Optional[str] = None, 
             string: Optional[str] = None, 
-            integrator: str = 'implicitfast'):
+            integrator: str = 'implicitfast',
+            dt: float = None):
 
         assert (path is not None) != (string is not None)
 
@@ -33,12 +34,18 @@ class Dynamics:
         elif string is not None:
             model = mujoco.MjModel.from_xml_string(string)
 
+        ## setting the integrator
         if integrator == 'implicitfast':
             model.opt.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
         elif integrator == 'euler':
             model.opt.integrator = mujoco.mjtIntegrator.mjINT_EULER
+        elif integrator == 'rk4':
+            model.opt.integrator = mujoco.mjtIntegrator.mjINT_RK4
         else:
             raise ValueError(f'Unknown integrator: {integrator}')
+        
+        if dt is not None:
+            model.opt.timestep = dt
 
         model.vis.global_.offheight = 720
         model.vis.global_.offwidth = 1280

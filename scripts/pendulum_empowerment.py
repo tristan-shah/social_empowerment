@@ -9,7 +9,7 @@ if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
     ## simulation horizon
-    empowerment_horizon = 50
+    empowerment_horizon = 25 #50
     max_power = 1.0
     T = 1000
 
@@ -57,4 +57,4 @@ if __name__ == '__main__':
     fig.savefig(f'pendulum_empowerment.png', dpi = 300)
 
     ## render an animation
-    dyn.render(X, path = 'pendulum_empowerment.mp4')
+    dyn.render(X, path = 'pendulum_empowerment.mp4', skip = 2)

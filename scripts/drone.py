@@ -7,8 +7,7 @@ from soc_emp.dynamics import Dynamics
 if __name__ == '__main__':
 
     T = 2000
-    # dyn = Dynamics(path = 'xml/mujoco_menagerie/bitcraze_crazyflie_2/scene.xml')
-    dyn = Dynamics(path = 'xml/mujoco_menagerie/bitcraze_crazyflie_2/swarm.xml')
+    dyn = Dynamics(path = 'xml/bitcraze_crazyflie_2/scene.xml', integrator = 'euler')
     xt = dyn.init_state()
 
     print(dyn.state_dim)

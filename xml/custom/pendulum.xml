@@ -1,11 +1,12 @@
 <mujoco model="pendulum">
 
-    <!-- <visual>
-        <global offheight="720" offwidth="1280"/>
-    </visual> -->
-
     <compiler angle="radian"/>
-    <option integrator="implicitfast" timestep="0.01" gravity="0 0 -9.81"/>
+
+    <!-- works -->
+    <!-- <option integrator="implicitfast" timestep="0.01" gravity="0 0 -9.81"/> -->
+
+    <!-- experimental -->
+    <option integrator="implicitfast" timestep="0.02" gravity="0 0 -9.81"/>
 
     <asset>
         <texture type="skybox" builtin="gradient" rgb1="0.6 0.7 0.9" rgb2="0.3 0.3 0.4" width="512" height="3072"/>
@@ -24,7 +25,8 @@
         <!-- Pendulum base -->
         <body name="pendulum" pos="0 0 1.2">
             <!-- Hinge joint rotates around y-axis -->
-            <joint name="hinge" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0.1"/>
+            <!-- <joint name="hinge" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0.1"/> -->
+            <joint name="hinge" type="hinge" axis="0 1 0" pos="0 0 0" damping="0.1"/>
 
             <!-- Rod of the pendulum -->
             <geom name="rod" type="capsule" fromto="0 0 0 0 0 -1" size="0.02" mass="1"/>

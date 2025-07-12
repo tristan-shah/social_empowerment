@@ -203,7 +203,7 @@ def compute_multiagent_empowerment(
     dm = du * horizon
 
     S = jnp.zeros((num_agents, dm, dm))
-    S_z = jnp.eye(dx) + jnp.diag(jax.random.normal(key, (dx))) * 1e-5
+    # S_z = jnp.eye(dx) + jnp.diag(jax.random.normal(key, (dx))) * 1e-5
 
     # F = compute_F(dyn, x0, U)
     X = unroll(dyn, x0, U)
@@ -213,8 +213,10 @@ def compute_multiagent_empowerment(
 
     F_agent, F_noise = split_channel_matrix(F, num_agents)
 
-    ## egoistic
-    S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
+    ## hardcoded noise perturbation
+    S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5 
+    
+    ## egoistic double pendulum
     F_agent = jnp.stack([
         F_agent[0, [0, 2], :],
         F_agent[1, [1, 3], :]
@@ -228,7 +230,6 @@ def compute_multiagent_empowerment(
     '''
     Explicit iteration
     '''
-
     max_iter = 10
 
     def cond_fun(state):

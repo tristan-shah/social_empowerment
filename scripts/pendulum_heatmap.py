@@ -11,7 +11,7 @@ if __name__ == '__main__':
     xml_path = 'xml/custom/pendulum.xml'
     dyn = Dynamics(path = xml_path)
 
-    T = 50
+    T = 25 #50
     P = 1.0
 
     U = jnp.zeros((T, dyn.control_dim))

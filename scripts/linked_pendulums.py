@@ -22,90 +22,99 @@ if __name__ == '__main__':
     ## hyperparams
     key = jax.random.key(5)
     T = 1500 ## simulation horizon
-    empowerment_horizon = 50
     num_agents = 2
-    power = jnp.array([1.0, 1.0])
     alpha = 0.01
+
+    # empowerment_horizon = 150
+    # power = jnp.array([1.4, 1.0])
 
     ## load in xml
     xml_path = 'xml/custom/linked_pendulums.xml'
     dyn = Dynamics(path = xml_path)
-    
-    U = jnp.zeros((empowerment_horizon, dyn.control_dim))
 
-    dx = dyn.state_dim
-    du = dyn.control_dim // num_agents
-    xt = dyn.init_state()
+    horizons = jnp.arange(50, 150, 10)
+    powers = jnp.linspace(0.5, 3.0, 10)
 
-    ## tensor for state storage
-    X = jnp.zeros((T + 1, dyn.state_dim))
-    X = X.at[0].set(xt)
+    for i in range(len(powers)):
+        for j in range(len(powers)):
+            for horizon in horizons:
 
-    iter_hist = jnp.zeros((T,))
-    emp_hist = jnp.zeros((T, num_agents))
-    ke_hist = jnp.zeros((T, num_agents))
-    pe_hist = jnp.zeros((T, num_agents))
+                empowerment_horizon = horizon
+                power = jnp.array([powers[i], powers[j]])
 
-    # xt = xt.at[:].set([ 2.3031253,  -2.3020508,  -0.01055187,  0.00946543])
+                U = jnp.zeros((empowerment_horizon, dyn.control_dim))
 
-    print(xt)
-    print(jax.devices())
+                dx = dyn.state_dim
+                du = dyn.control_dim // num_agents
+                xt = dyn.init_state()
 
-    for t in range(T):
+                ## tensor for state storage
+                X = jnp.zeros((T + 1, dyn.state_dim))
+                X = X.at[0].set(xt)
 
-        ## compute empowerment
-        iterations, e = compute_multiagent_empowerment(dyn, xt, U, power, alpha, key)
+                iter_hist = jnp.zeros((T,))
+                emp_hist = jnp.zeros((T, num_agents))
+                ke_hist = jnp.zeros((T, num_agents))
+                pe_hist = jnp.zeros((T, num_agents))
 
-        ## obtain control gain
-        _, B = dyn.linearize(xt, jnp.zeros(dyn.control_dim)) 
-        grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, key)
+                print(xt)
+                print(jax.devices())
 
-        ## compute action
-        # ut = jnp.sign(jnp.diag(grad_E @ B)) * jnp.sqrt(power)
-        # ut = ut + (ut == 0) * jnp.sqrt(power)
+                for t in range(T):
 
-        ut = jnp.sign(jnp.diag(grad_E @ B)) * power
-        ut = ut + (ut == 0) * power
+                    ## compute empowerment
+                    iterations, e = compute_multiagent_empowerment(dyn, xt, U, power, alpha, key)
 
-        ## log stuff
-        emp_hist = emp_hist.at[t].set(e)
-        iter_hist = iter_hist.at[t].set(iterations)
-        ke_hist = ke_hist.at[t].set(kinetic_energy(xt))
-        pe_hist = pe_hist.at[t].set(potential_energy(xt))
+                    ## obtain control gain
+                    _, B = dyn.linearize(xt, jnp.zeros(dyn.control_dim)) 
+                    grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, key)
 
-        ## propagate dynamics
-        xt = dyn.step(xt, ut)
-        print(t, xt, ut, e, iterations)
+                    ## compute action
+                    # ut = jnp.sign(jnp.diag(grad_E @ B)) * jnp.sqrt(power)
+                    # ut = ut + (ut == 0) * jnp.sqrt(power)
 
-        ## log state
-        X = X.at[t+1].set(xt)
+                    ut = jnp.sign(jnp.diag(grad_E @ B)) * power
+                    ut = ut + (ut == 0) * power
 
-    name = f'left={power[0]}-right={power[1]}-horizon={empowerment_horizon}'
+                    ## log stuff
+                    emp_hist = emp_hist.at[t].set(e)
+                    iter_hist = iter_hist.at[t].set(iterations)
+                    ke_hist = ke_hist.at[t].set(kinetic_energy(xt))
+                    pe_hist = pe_hist.at[t].set(potential_energy(xt))
 
-    fig, ax = plt.subplots(4, 1)
+                    ## propagate dynamics
+                    xt = dyn.step(xt, ut)
+                    print(t, xt, ut, e, iterations)
 
-    ax[0].set_ylabel('Empowerment')
-    ax[0].plot(emp_hist[:, 0])
-    ax[0].plot(emp_hist[:, 1])
+                    ## log state
+                    X = X.at[t+1].set(xt)
 
-    ax[1].set_ylabel('Kinetic Energy')
-    ax[1].plot(ke_hist[:, 0])
-    ax[1].plot(ke_hist[:, 1])
+                name = f'left={power[0]}-right={power[1]}-horizon={empowerment_horizon}'
 
-    ax[2].set_ylabel('Potenital Energy')
-    ax[2].plot(pe_hist[:, 0])
-    ax[2].plot(pe_hist[:, 1])
+                fig, ax = plt.subplots(4, 1)
 
-    ax[3].set_ylabel('Iterations')
-    ax[3].plot(iter_hist)
-    ax[3].set_xlabel('Timestep')
+                ax[0].set_ylabel('Empowerment')
+                ax[0].plot(emp_hist[:, 0])
+                ax[0].plot(emp_hist[:, 1])
 
-    fig.tight_layout()
-    fig.savefig(f'{name}.png', dpi = 300)
-    # plt.show()
+                ax[1].set_ylabel('Kinetic Energy')
+                ax[1].plot(ke_hist[:, 0])
+                ax[1].plot(ke_hist[:, 1])
 
-    skip = 2
-    dyn.render(
-        X,
-        path = f'{name}.mp4',
-        skip = skip)
+                ax[2].set_ylabel('Potenital Energy')
+                ax[2].plot(pe_hist[:, 0])
+                ax[2].plot(pe_hist[:, 1])
+
+                ax[3].set_ylabel('Iterations')
+                ax[3].plot(iter_hist)
+                ax[3].set_xlabel('Timestep')
+
+                fig.tight_layout()
+                fig.savefig(f'results/{name}.png', dpi = 300)
+                # plt.show()
+
+                skip = 2
+                dyn.render(
+                    X,
+                    path = f'results/{name}.mp4',
+                    skip = skip)

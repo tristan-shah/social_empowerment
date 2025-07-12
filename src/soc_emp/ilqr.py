@@ -3,9 +3,11 @@ from typing import Optional
 import jax
 from jax import Array
 from jax import numpy as jnp
+import numpy as np
+import mujoco
 
 from soc_emp import Dynamics
-from soc_emp.utils import smooth_angle_wrap
+from soc_emp.utils import smooth_angle_wrap, split_state, diff_qpos
 
 class TrajectoryOptimizer:
     '''
@@ -60,7 +62,43 @@ class TrajectoryOptimizer:
             if U is not None:
                 ut = U[t]
             else:
-                delta_x = X_new[t] - X[t]
+
+                '''
+                raw subtraction
+                '''
+                # delta_x = X_new[t] - X[t]
+
+                '''
+                Custom diff
+                '''
+
+                X_pos, X_vel = split_state(X[t], self.dyn.nq)
+                X_new_pos, X_new_vel = split_state(X_new[t], self.dyn.nq)
+                dqpos = diff_qpos(self.dyn.model, X_pos, X_new_pos)
+                delta_x = jnp.concatenate([dqpos, X_new_vel - X_vel])
+
+                '''
+                mujoco delta_x
+                '''
+                # d_pos = np.zeros(self.dyn.nv)
+                # X_pos, X_vel = split_state(X[t], self.dyn.nq)
+                # X_new_pos, X_new_vel = split_state(X_new[t], self.dyn.nq)
+                # mujoco.mj_differentiatePos(self.dyn.model, d_pos, 1.0, X_pos, X_new_pos)
+                # delta_x = jnp.concatenate([d_pos, X_new_vel - X_vel])
+
+                '''
+                manual delta x
+                '''
+                # delta_x = jnp.stack([ ## specific to single pendulum
+                #     smooth_angle_wrap(X_new[t, 0] - X[t, 0]),
+                #     (X_new[t, 1] - X[t, 1])
+                #     ])
+
+                # print('hello')
+                # print(X_pos.shape, X_vel.shape)
+                # print(k[t].shape, K[t].shape)
+                # print()
+
                 ut = k[t] + K[t] @ delta_x
 
             ut = ut.clip(self.ctrl_range[:, 0], self.ctrl_range[:, 1])
@@ -140,6 +178,7 @@ class TrajectoryOptimizer:
 
         while i < max_iter and (not converged or use_all_iterations):
             i += 1
+            # print(i)
 
             J_new, X_new, U_new, A, B = self.update(x0, X, U, A, B)
 
@@ -182,8 +221,6 @@ class ModelPredictiveController:
         ut = self.U[0]
 
         ## shift over the plan by one action
-        # self.U = self.U.roll(-1)
-        self.U = jnp.roll(self.U, shift=-1, axis = 0)
+        self.U = jnp.roll(self.U, shift = -1, axis = 0)
         self.U = self.U.at[-1].set(self.U[-2])
-        # self.U[-1] = self.U[-2].clone()
         return ut, J
