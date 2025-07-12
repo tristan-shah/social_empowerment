@@ -194,10 +194,10 @@
     </body>
 
 
-        <!-- goal -->
-    <!-- <body name="goal_body" pos="0.1 0.0 0.1">
-        <geom type="box" size="0.1 0.1 0.1" rgba="0 140 0 0.5" contype="0" conaffinity="0"/>
-    </body> -->
+    <!-- goal -->
+    <body name="goal_body" pos="0.1 0.0 0.3">
+        <geom type="box" size="0.05 0.05 0.05" rgba="0 140 0 0.5" contype="0" conaffinity="0"/>
+    </body>
         
   </worldbody>
 

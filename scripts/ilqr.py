@@ -146,8 +146,9 @@ if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
     integrator = 'implicitfast'
+    dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.0005)
     # integrator = 'euler'
-    dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.001)
+    # dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.001)
     # dyn = Dynamics(path = 'xml/unitree_g1/scene_mjx.xml', integrator = integrator, dt = 0.001)
     # dyn = Dynamics(path = 'xml/custom/ball.xml', integrator = integrator)
 
@@ -167,13 +168,16 @@ if __name__ == '__main__':
     for jnt_type, jnt_qposadr in zip(dyn.mjx_model.jnt_type, dyn.mjx_model.jnt_qposadr):
         print(mjx.JointType(jnt_type), jnt_qposadr)
 
-    steps = 300 #1000
+    # steps = 300
+    steps = 1000
     goal_qpos = jnp.array(home.qpos)
     # goal_qpos = goal_qpos.at[0].set(-2.0) ## x
     # goal_qpos = goal_qpos.at[1].set(-1.0) ## y
     
     goal_qpos = goal_qpos.at[0].set(0.1) ## x
     goal_qpos = goal_qpos.at[1].set(0.0) ## y
+    goal_qpos = goal_qpos.at[2].set(0.28) ## y
+    qoal_qpos = goal_qpos.at[3:7].set([1.0, 0.0, 0.0, 0.0]) ## quaternion
 
     goal_qvel = jnp.zeros(dyn.nv)
     goal_qvel = goal_qvel.at[0].set(1.0)
@@ -182,6 +186,7 @@ if __name__ == '__main__':
     Q = jnp.zeros((dyn.state_dim, dyn.state_dim))
     Q = Q.at[0, 0].set(1.0)
     Q = Q.at[1, 1].set(1.0)
+    Q = Q.at[2, 2].set(1.0)
 
     '''for ball'''
     # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.001) ## velocity penalty
