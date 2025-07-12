@@ -3,8 +3,6 @@ from jax import numpy as jnp
 from jax.scipy.spatial.transform import Rotation
 from jax import Array
 from einops import einsum
-import jax.scipy.spatial
-import jax.scipy.spatial.transform
 import matplotlib.pyplot as plt
 from mujoco import mjx
 
@@ -127,7 +125,6 @@ class iLQR:
             P = L + M
             ## inverse term
             S = jnp.linalg.inv(R + B[t].T @ P @ B[t] + jnp.eye(du) * 1e-6)
-            # S = jnp.linalg.inv(R + B[t].T @ P @ B[t])
             ## gradient of policy
             grad_pi = - S @ B[t].T @ P @ A[t]
             ## compute gains
@@ -145,10 +142,10 @@ class iLQR:
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
-    integrator = 'implicitfast'
-    dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.0005)
-    # integrator = 'euler'
-    # dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.001)
+    # integrator = 'implicitfast'
+    # dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.0005)
+    integrator = 'euler'
+    dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.001)
     # dyn = Dynamics(path = 'xml/unitree_g1/scene_mjx.xml', integrator = integrator, dt = 0.001)
     # dyn = Dynamics(path = 'xml/custom/ball.xml', integrator = integrator)
 
@@ -168,13 +165,12 @@ if __name__ == '__main__':
     for jnt_type, jnt_qposadr in zip(dyn.mjx_model.jnt_type, dyn.mjx_model.jnt_qposadr):
         print(mjx.JointType(jnt_type), jnt_qposadr)
 
-    # steps = 300
     steps = 1000
     goal_qpos = jnp.array(home.qpos)
     # goal_qpos = goal_qpos.at[0].set(-2.0) ## x
     # goal_qpos = goal_qpos.at[1].set(-1.0) ## y
     
-    goal_qpos = goal_qpos.at[0].set(0.1) ## x
+    goal_qpos = goal_qpos.at[0].set(0.2) ## x
     goal_qpos = goal_qpos.at[1].set(0.0) ## y
     goal_qpos = goal_qpos.at[2].set(0.28) ## y
     qoal_qpos = goal_qpos.at[3:7].set([1.0, 0.0, 0.0, 0.0]) ## quaternion
@@ -192,7 +188,7 @@ if __name__ == '__main__':
     # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.001) ## velocity penalty
     # R = jnp.eye(dyn.control_dim) * 0.00001
 
-    '''for go'''
+    '''for go2'''
     # Q = Q.at[2, 2].set(1.0)
     Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.00001) ## velocity penalty
     R = jnp.eye(dyn.control_dim) * 0.001
