@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     ## create variables to sweep over
     horizons = jnp.arange(50, 150, 10)
-    powers = jnp.linspace(0.5, 3.0, 30)
+    powers = jnp.linspace(0.5, 3.0, 10)
 
     ## check a particular setting
     horizon = 100#horizons[0]
@@ -178,7 +178,7 @@ if __name__ == '__main__':
 
     outcomes = batch_get_pendulum_outcome(X).reshape(num_powers, num_powers)
     print(outcomes)
-    plot_outcome_hetamap(outcomes, horizon, powers, path = f'results/horizon={horizon}_outcome_heatmap.png')
+    plot_outcome_hetamap(outcomes, horizon, powers, path = f'horizon={horizon}_outcome_heatmap.png')
 
     # time = horizon * dyn.mjx_model.opt.timestep
 
