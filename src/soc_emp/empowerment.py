@@ -205,7 +205,6 @@ def compute_multiagent_empowerment(
     S = jnp.zeros((num_agents, dm, dm))
     # S_z = jnp.eye(dx) + jnp.diag(jax.random.normal(key, (dx))) * 1e-5
 
-    # F = compute_F(dyn, x0, U)
     X = unroll(dyn, x0, U)
     A, B = jax.vmap(dyn.linearize)(X[:-1], U)
     F = compute_F_from_A_B(A, B)
@@ -213,8 +212,10 @@ def compute_multiagent_empowerment(
 
     F_agent, F_noise = split_channel_matrix(F, num_agents)
 
-    ## hardcoded noise perturbation
-    S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5 
+    # hardcoded noise perturbation
+    S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
+    # key, subkey = jax.random.split(key)   # Split to get a new subkey
+    # S_z = jnp.eye(2) + jnp.diag(jax.random.normal(subkey, (2,))) * 1e-5
     
     ## egoistic double pendulum
     F_agent = jnp.stack([

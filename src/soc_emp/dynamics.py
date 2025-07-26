@@ -49,6 +49,7 @@ class Dynamics:
 
         model.vis.global_.offheight = 720
         model.vis.global_.offwidth = 1280
+        # model.tendon_stiffness[0] = 3.0 ## default
         self.model = model
 
         ## create mjx model

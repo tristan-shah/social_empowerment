@@ -1,7 +1,7 @@
 <mujoco model="ball scene">
     <statistic center="0 0 0.1" extent="0.8"/>
 
-    <option impratio="20"/>
+    <option impratio="10"/>
 
     <visual>
         <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
@@ -18,31 +18,31 @@
 
     <worldbody>
         <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
-        <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"
-            friction="1 0.005 0.0001"/>
+        <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+            <!-- friction="1 0.005 0.0001"/> -->
         
         <!-- ball -->
         <body name="ball_body" pos="0.0 0 0.0">
             <joint name="free_joint" type="free" damping="0.01"/>
-            <geom name="ball_geom" type="sphere" size="0.1" mass="1" contype="1" conaffinity="2"
-                friction="1 0.005 0.0001"/>
+            <geom name="ball_geom" type="sphere" size="0.1" mass="1" contype="1" conaffinity="2"/>
+                <!-- friction="1 0.005 0.0001"/> -->
+            <body name="marker_body" pos="0.1 0 0">
+                <geom name="marker_geom" type="sphere" size="0.01" mass="0" contype="0" conaffinity="0" rgba="140 0 0 0.5" />
+            </body>
         </body>
 
         <!-- goal -->
-        <body name="goal_body" pos="-2.0 -1.0 0.1">
+        <body name="goal_body" pos="1.0 -0.7 0.1">
             <geom type="box" size="0.1 0.1 0.1" rgba="0 140 0 0.5" contype="0" conaffinity="0"/>
         </body>
         
     </worldbody>
 
     <actuator>
-        <!-- acceleration motors -->
-        <!-- <motor joint="free_joint" name="force_x" ctrlrange="-1 1" gear="1 0 0 0 0 0"/>
-        <motor joint="free_joint" name="force_y" ctrlrange="-1 1" gear="0 1 0 0 0 0"/> -->
-    
-        <!-- angular acceleration motors -->
-        <motor joint="free_joint" name="torque_x" ctrlrange="-1 1" gear="0 0 0 0.3 0 0"/>
-        <motor joint="free_joint" name="torque_y" ctrlrange="-1 1" gear="0 0 0 0 0.3 0"/>
+
+        <!-- free joint angular acceleration motors -->
+        <motor joint="free_joint" name="torque_x" ctrlrange="-1 1" gear="0 0 0 0.5 0 0"/>
+        <motor joint="free_joint" name="torque_y" ctrlrange="-1 1" gear="0 0 0 0 0.5 0"/>
     </actuator>
 
     <keyframe>
