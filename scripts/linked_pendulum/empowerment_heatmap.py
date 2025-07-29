@@ -1,12 +1,9 @@
 import jax
-from jax import Array
 from jax import numpy as jnp
-import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap, BoundaryNorm
 
 from soc_emp import Dynamics
-from soc_emp.empowerment import compute_multiagent_empowerment, compute_multiagent_empowerment_grad, unroll
+from soc_emp.empowerment import compute_multiagent_empowerment
 
 if __name__ == '__main__':
 

@@ -1,3 +1,5 @@
+import time
+from tqdm import tqdm
 import jax
 from jax import Array
 from jax import numpy as jnp
@@ -6,11 +8,14 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 
 from soc_emp import Dynamics
-from soc_emp.empowerment import compute_multiagent_empowerment, compute_multiagent_empowerment_grad
+from soc_emp.empowerment import compute_multiagent_empowerment_grad
 from soc_emp.utils import smooth_angle_wrap
 
-def get_pendulum_outcome(traj: Array):
-    # assert traj.ndim  == 2
+def get_linked_pendulum_outcome(traj: Array):
+    '''
+    absolute value of the angle from the top should be less than 1 rad.
+    angular velocity should be less than 2 rad / sec.
+    '''
 
     ## check angle from the bottom (0.0 rad). top is jnp.pi rad
     left_angle_from_bottom = jnp.abs(smooth_angle_wrap(traj[:, 0]))
@@ -21,7 +26,7 @@ def get_pendulum_outcome(traj: Array):
     right_up = jnp.all(right_angle_from_bottom[-50:] >= 2.1)
 
     neither_up = jnp.logical_and(jnp.logical_not(left_up), jnp.logical_not(right_up))
-    both_up = jnp.logical_and(left_up, right_up)
+    # both_up = jnp.logical_and(left_up, right_up)
 
     outcome = jnp.where(neither_up, 0,
                 jnp.where(jnp.logical_and(left_up, jnp.logical_not(right_up)), 1,
@@ -30,7 +35,7 @@ def get_pendulum_outcome(traj: Array):
 
     return outcome
 
-def plot_outcome_hetamap(m: Array, horizon: int, powers: Array, path: str):
+def plot_outcome_hetamap(m: Array, horizon: int, powers: Array, dt: float, path: str):
         
     # Custom colormap and norm
     colors = ['lightgray', 'blue', 'orange', 'green']
@@ -40,7 +45,7 @@ def plot_outcome_hetamap(m: Array, horizon: int, powers: Array, path: str):
 
     # Plot
     fig, ax = plt.subplots(figsize=(6, 5))
-    img = ax.imshow(m, cmap=cmap, norm=norm, origin = 'lower')
+    img = ax.imshow(m, cmap = cmap, norm = norm, origin = 'lower')
 
     # Convert powers to numpy and determine tick spacing
     powers_np = np.array(powers)
@@ -59,7 +64,7 @@ def plot_outcome_hetamap(m: Array, horizon: int, powers: Array, path: str):
 
     ax.set_xlabel('Right Agent Power')
     ax.set_ylabel('Left Agent Power')
-    ax.set_title(f'Horizon = {horizon}')
+    ax.set_title(f'Horizon = {horizon * dt} (seconds)')
 
     # Add colorbar with custom ticks/labels
     cbar = plt.colorbar(img, ax=ax, ticks=[0, 1, 2, 3])
@@ -105,201 +110,152 @@ def plot_iteration_hetamap(m: Array, horizon: int, powers: Array, path: str):
     return
 
 def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: float, steps: int, key):
+    '''
+    runs the multi agent empowerment controller where each agent selects an action proportional to the gradient
+    of empowerment.
+    '''
 
+    ## obtain the initial zero state of the system
     xt = dyn.init_state()
 
     @jax.jit
-    def _step_linked_pendulums(_xt: Array, _):
+    def _step_linked_pendulums(carry, _):
+        _xt, _key = carry
 
         ## obtain control gain
         _, B = dyn.linearize(_xt, U[0])
         grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, power, alpha, key)
 
-        ## compute action (full power)
+        ## compute action
         ut = jnp.sign(jnp.diag(grad_E @ B)) * power
 
-        # Generate random values for all entries if gradient is zero
-        ut = ut + (ut == 0) * power
+        ## pick a random direction with max power if the action is zero
+        sub_key, _key = jax.random.split(_key)
+        random_direction = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(ut.shape[0],))
+        ut = ut + (ut == 0) * power * random_direction
 
         ## propagate dynamics
         _xt = dyn.step(_xt, ut)
-        return (_xt, _xt)
+
+        return ((_xt, _key), _xt)
     
-    _, X = jax.lax.scan(_step_linked_pendulums, xt, length = steps)
+    _, X = jax.lax.scan(_step_linked_pendulums, (xt, key), length = steps)
     return jnp.concatenate([xt[None, :], X])
 
-'''
-absolute value of the angle from the top should be less than 1 rad.
-angular velocity should be less than 2 rad / sec.
-'''
-
 if __name__ == '__main__':
-
-    ## check if gpu device is available
-    print(jax.devices())
-
-    ## hyperparams
+    ## Hyperparams
     key = jax.random.key(5)
-    steps = 1500 ## simulation horizon
-    num_agents = 2
-    alpha = 0.01
-
-    ## load in xml
-    xml_path = 'xml/custom/linked_pendulums.xml'
-    dyn = Dynamics(path = xml_path)
-
-    print(f'Timestep = {dyn.mjx_model.opt.timestep}')
-
-    ## create variables to sweep over
-    horizons = jnp.arange(50, 150, 10)
-    powers = jnp.linspace(0.5, 3.0, 10)
-
-    ## check a particular setting
-    horizon = 100#horizons[0]
-    power = jnp.array([2.0, 1.0])
-
-    ## build a sequence of zero actions
-    U = jnp.zeros((horizon, dyn.control_dim))
-
-    num_powers = powers.shape[0]
-    I, J = jnp.meshgrid(jnp.arange(num_powers), jnp.arange(num_powers), indexing = 'ij')
-    pairs = jnp.stack([powers[I], powers[J]], axis = -1).reshape(-1, 2)
+    steps = 100 #1500    ## simulation horizon
+    alpha = 0.01    ## smoothing for synchronous IWF
+    horizon = 60   ## empowerment horizon
 
     ## create a function that will execute run_multi_agent_empowerment in parallel
-    batch_run_multiagent_empowerment = jax.vmap(
-        run_multiagent_empowerment, 
-        in_axes = (None, None, 0, None, None, 0))
-    
-    batch_get_pendulum_outcome = jax.vmap(get_pendulum_outcome)
-    
-    ## broadcast function over pairs and keys
-    keys = jax.random.split(key, pairs.shape[0])
-    X = batch_run_multiagent_empowerment(dyn, U, pairs, alpha, steps, keys)
+    batch_run_multiagent_empowerment = jax.jit(
+        jax.vmap(
+            lambda _dyn, _U, _power, _alpha, _key : run_multiagent_empowerment(_dyn, _U, _power, _alpha, steps, _key),
+            in_axes = (None, None, 0, None, 0)
+        ),
+        static_argnums = 0
+    )
 
-    outcomes = batch_get_pendulum_outcome(X).reshape(num_powers, num_powers)
-    print(outcomes)
-    plot_outcome_hetamap(outcomes, horizon, powers, path = f'horizon={horizon}_outcome_heatmap.png')
+    pmap_batch_run_multiagent_empowerment = jax.pmap(
+        batch_run_multiagent_empowerment,
+        in_axes = (None, None, 0, None, 0),
+        static_broadcasted_argnums = 0
+    )
 
-    # time = horizon * dyn.mjx_model.opt.timestep
+    ## create a function to evaluate the outcome of a batch of linked_pendulum runs
+    batch_get_linked_pendulum_outcome = jax.vmap(get_linked_pendulum_outcome)
 
-    '''
-    loop code
-    '''
-    # outcome_heatmap = jnp.zeros((len(horizons), len(powers), len(powers)))
-    # iteration_heatmap = jnp.zeros((len(horizons), len(powers), len(powers)))
+    print(f'GPU devices: {jax.devices()}')
+    print(f'Starting sweep at {time.ctime()}')
 
-    # for i in range(len(powers)):
-    #     for j in range(len(powers)):
-    #         for k in range(len(horizons)):
+    ## Load dynamics
+    xml_path = 'xml/custom/linked_pendulums.xml'
+    dyn = Dynamics(path=xml_path)
+    print(f'Timestep = {dyn.mjx_model.opt.timestep}')
+    print(f'Horizon = {horizon}')
 
-    #             # empowerment_horizon = horizons[k]
-    #             # power = jnp.array([powers[i], powers[j]])
+    ## create zero control sequence
+    U = jnp.zeros((horizon, dyn.control_dim))
 
-    #             # empowerment_horizon = 200
-    #             empowerment_horizon = 25
-    #             power = jnp.array([1.5, 1.5])
+    ## Parameter sweep
+    powers = jnp.linspace(0.5, 3.0, 30)
+    num_powers = powers.shape[0]
+    I, J = jnp.meshgrid(jnp.arange(num_powers), jnp.arange(num_powers), indexing='ij')
+    ## all possible combinations of powers
+    pairs = jnp.stack([powers[I], powers[J]], axis=-1).reshape(-1, 2)
 
-    #             U = jnp.zeros((empowerment_horizon, dyn.control_dim))
 
-    #             dx = dyn.state_dim
-    #             du = dyn.control_dim // num_agents
-    #             xt = dyn.init_state()
+    D = jax.device_count()
+    ## Batch processing
+    # per_batch_size = 50
+    per_device_batch = 2
+    batch_size = per_device_batch * D
+    num_pairs = pairs.shape[0]
+    num_batches = (num_pairs + batch_size - 1) // batch_size
 
-    #             ## tensor for state storage
-    #             X = jnp.zeros((T + 1, dyn.state_dim))
-    #             X = X.at[0].set(xt)
+    batch_idx = 0 ## select a batch
+    assert batch_idx < num_batches
 
-    #             iter_hist = jnp.zeros((T,))
-    #             emp_hist = jnp.zeros((T, num_agents))
-    #             ke_hist = jnp.zeros((T, num_agents))
-    #             pe_hist = jnp.zeros((T, num_agents))
+    start_idx = batch_idx * batch_size
+    end_idx = min((batch_idx + 1) * batch_size, num_pairs)
+    B = end_idx - start_idx
+    batch_pairs = pairs[start_idx:end_idx]
+    batch_keys = jax.random.split(key, B)
 
-    #             print(xt)
-    #             print(jax.devices())
+    padded_B = per_device_batch * D
 
-    #             for t in range(T):
+    if B < per_device_batch * D:
+        pad_size = padded_B - B
+        batch_pairs = jnp.vstack([batch_pairs, jnp.zeros((pad_size, 2))])
+        batch_keys = jnp.concatenate([batch_keys, jax.random.split(key, pad_size)])
 
-    #                 ## compute empowerment
-    #                 iterations, e = compute_multiagent_empowerment(dyn, xt, U, power, alpha, key)
+    batch_pairs_reshaped = batch_pairs.reshape(D, per_device_batch, 2)
+    batch_keys_reshaped = batch_keys.reshape(D, per_device_batch)
 
-    #                 ## obtain control gain
-    #                 _, B = dyn.linearize(xt, jnp.zeros(dyn.control_dim)) 
-    #                 grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, key)
 
-    #                 ## compute action (full power)
-    #                 ut = jnp.sign(jnp.diag(grad_E @ B)) * power
+    print(batch_pairs_reshaped.shape)
 
-    #                 # Generate random values for all entries
-    #                 # key, subkey = jax.random.split(key)
-    #                 # rand = jax.random.normal(subkey, shape=ut.shape)
-    #                 ut = ut + (ut == 0) * power # * jnp.sign(rand)
+    # batch_X = batch_run_multiagent_empowerment(dyn, U, batch_pairs_reshaped[0], alpha, batch_keys_reshaped[0])
+    batch_X = pmap_batch_run_multiagent_empowerment(dyn, U, batch_pairs_reshaped, alpha, batch_keys_reshaped)
+    print(batch_X)
+    print(batch_X.shape)
 
-    #                 ## log stuff
-    #                 emp_hist = emp_hist.at[t].set(e)
-    #                 iter_hist = iter_hist.at[t].set(iterations)
-    #                 ke_hist = ke_hist.at[t].set(kinetic_energy(xt))
-    #                 pe_hist = pe_hist.at[t].set(potential_energy(xt))
 
-    #                 ## propagate dynamics
-    #                 xt = dyn.step(xt, ut)
-    #                 print(t, xt, ut, e, iterations)
+    # # Precompile JIT
+    # start_time = time.time()
+    # print('Precompiling JIT...')
+    # _ = batch_run_multiagent_empowerment(dyn, U, pairs[:1], alpha, steps, jax.random.split(key, 1))
+    # print('JIT compilation done')
 
-    #                 ## log state
-    #                 X = X.at[t+1].set(xt)
 
-    #             name = f'left={power[0]}-right={power[1]}-horizon={empowerment_horizon}'
+    # outcomes = jnp.zeros((num_powers, num_powers))
+    # for batch_idx in tqdm(range(num_batches), desc = f'Sweep (horizon={horizon})'):
+        
+    #     start_idx = batch_idx * batch_size
+    #     end_idx = min((batch_idx + 1) * batch_size, num_pairs)
+    #     batch_pairs = pairs[start_idx:end_idx]
+    #     batch_keys = jax.random.split(key, end_idx - start_idx)
 
-    #             fig, ax = plt.subplots(2, 1)
-    #             fig.suptitle(f'Horizon = {empowerment_horizon}')
-    #             # First subplot: Empowerment
-    #             ax[0].plot(emp_hist[:, 0], label='Agent 0', color='blue')
-    #             ax[0].plot(emp_hist[:, 1], label='Agent 1', color='orange')
-    #             ax[0].set_ylabel('Empowerment (Nats)', fontsize=14)
-    #             ax[0].tick_params(axis='both', labelsize=12)
-    #             ax[0].legend(fontsize=12)
+    #     batch_start = time.time()
+    #     batch_X = batch_run_multiagent_empowerment(dyn, U, batch_pairs, alpha, steps, batch_keys)
+    #     batch_outcomes = batch_get_linked_pendulum_outcome(batch_X)
+    #     batch_time = time.time() - batch_start
 
-    #             agent_0_angle = jnp.abs(smooth_angle_wrap(X[:, 0] - jnp.pi))
-    #             agent_1_angle = jnp.abs(smooth_angle_wrap(X[:, 1] - jnp.pi))
-    #             ax[1].plot(agent_0_angle, color = 'blue')
-    #             ax[1].plot(agent_1_angle, color = 'orange')
-    #             ax[1].set_xlabel('Timestep', fontsize = 14)
-    #             ax[1].set_ylabel('Angle From Top (Rad)', fontsize = 14)
-    #             ax[1].tick_params(axis='both', labelsize = 12)
+    #     batch_I = I.reshape(-1)[start_idx:end_idx]
+    #     batch_J = J.reshape(-1)[start_idx:end_idx]
+    #     outcomes = outcomes.at[batch_I, batch_J].set(batch_outcomes)
 
-    #             fig.tight_layout()
-    #             # fig.savefig(f'results/{name}.png', dpi = 300)
+    #     # Save trajectories, outcomes, and power pairs
+    #     jnp.save(f'horizon={horizon}_X_batch_{batch_idx}.npy', batch_X)
+    #     jnp.save(f'horizon={horizon}_outcomes_batch_{batch_idx}.npy', batch_outcomes)
+    #     jnp.save(f'horizon={horizon}_pairs_batch_{batch_idx}.npy', batch_pairs)
+    #     print(f'Batch {batch_idx + 1}/{num_batches} ({end_idx}/{num_pairs} simulations) took {batch_time:.2f} seconds, saved X, outcomes, and pairs')
 
-    #             fig.savefig(f'test.png', dpi = 300)
-    #             plt.show()
-    #             plt.close(fig)
+    # # Save final outcomes and powers
+    # jnp.save(f'horizon={horizon}_outcomes.npy', outcomes)
+    # jnp.save(f'horizon={horizon}_powers.npy', powers)
+    # plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = f'horizon={horizon}_outcome_heatmap.png')
 
-    #             break
-    #         break
-    #     break
-
-    #             # # skip = 2
-    #             # # dyn.render(
-    #             # #     X,
-    #             # #     path = f'results/{name}.mp4',
-    #             # #     skip = skip)
-                
-
-    #             # left_up = is_up(pe_hist[:, 0])
-    #             # right_up = is_up(pe_hist[:, 1])
-    #             # neither_up = not left_up and not right_up
-    #             # both_up = left_up and right_up
-
-    #             # if neither_up:
-    #             #     outcome = 0
-    #             # elif left_up and not right_up:
-    #             #     outcome = 1
-    #             # elif not left_up and right_up:
-    #             #     outcome = 2
-    #             # elif both_up:
-    #             #     outcome = 3
-                
-    #             # outcome_heatmap = outcome_heatmap.at[k, i, j].set(outcome)
-    #             # plot_outcome_hetamap(outcome_heatmap[k], horizons[k], powers, path = f'results/horizon={empowerment_horizon}_outcome_heatmap.png')
-                
-    #             # iteration_heatmap = iteration_heatmap.at[k, i, j].set(jnp.mean(iter_hist))
-    #             # plot_iteration_hetamap(iteration_heatmap[k], horizons[k], powers, path = f'results/horizon={empowerment_horizon}_iteration_heatmap.png')
+    # print(f'Completed sweep at {time.ctime()}, total time {time.time() - start_time:.2f} seconds')

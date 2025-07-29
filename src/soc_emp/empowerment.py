@@ -109,9 +109,7 @@ def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
     A, B = jax.vmap(dyn.linearize)(X[:-1], U)
     F = compute_F_from_A_B(A, B)
     F = jnp.permute_dims(F, (1, 0, 2))
-
-    # F = compute_F(dyn, xt, U)
-
+    
     ## S is the covariance matrix of the final state.
     S = einsum(F, F, 'x1 T u, x2 T u -> x1 x2')
     h2 = jnp.linalg.eigvalsh(S)
@@ -123,7 +121,6 @@ def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
 compute_empowerment = jax.jit(compute_empowerment, static_argnums = 0)
 compute_empowerment_grad = jax.jit(jax.jacfwd(compute_empowerment, argnums = 1), static_argnums = 0)
 
-# @jax.jit
 def split_channel_matrix(F: Array, num_agents: int):
     '''
     Takes in a large channel matrix and splits it into two components:
@@ -188,6 +185,8 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
 
+MAX_ITER = 10
+
 def compute_multiagent_empowerment(
         dyn: Dynamics, 
         x0: Array, 
@@ -214,8 +213,6 @@ def compute_multiagent_empowerment(
 
     # hardcoded noise perturbation
     S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
-    # key, subkey = jax.random.split(key)   # Split to get a new subkey
-    # S_z = jnp.eye(2) + jnp.diag(jax.random.normal(subkey, (2,))) * 1e-5
     
     ## egoistic double pendulum
     F_agent = jnp.stack([
@@ -231,7 +228,7 @@ def compute_multiagent_empowerment(
     '''
     Explicit iteration
     '''
-    max_iter = 10
+    max_iter = MAX_ITER
 
     def cond_fun(state):
         i, S, e, e_prev = state
