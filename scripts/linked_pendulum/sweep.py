@@ -1,3 +1,5 @@
+from argparse import ArgumentParser
+from pathlib import Path
 import time
 from tqdm import tqdm
 import jax
@@ -10,6 +12,10 @@ from matplotlib.colors import ListedColormap, BoundaryNorm
 from soc_emp import Dynamics
 from soc_emp.empowerment import compute_multiagent_empowerment_grad
 from soc_emp.utils import smooth_angle_wrap
+
+'''
+srun --jobid=... nvidia-smi
+'''
 
 def get_linked_pendulum_outcome(traj: Array):
     '''
@@ -67,19 +73,19 @@ def plot_outcome_hetamap(m: Array, horizon: int, powers: Array, dt: float, path:
     ax.set_title(f'Horizon = {horizon * dt} (seconds)')
 
     # Add colorbar with custom ticks/labels
-    cbar = plt.colorbar(img, ax=ax, ticks=[0, 1, 2, 3])
+    cbar = plt.colorbar(img, ax = ax, ticks=[0, 1, 2, 3])
     cbar.ax.set_yticklabels(labels)
     cbar.set_label('Pendulum Up')
 
     plt.tight_layout()
-    fig.savefig(path, dpi=300)
+    fig.savefig(path, dpi = 300)
     plt.close(fig)
     return
 
-def plot_iteration_hetamap(m: Array, horizon: int, powers: Array, path: str):
+def plot_iteration_hetamap(heatmap: Array, horizon: int, powers: Array, path: str):
 
     fig, ax = plt.subplots(figsize=(6, 5))
-    img = ax.imshow(m, origin = 'lower')
+    img = ax.imshow(heatmap, origin = 'lower')
 
     # Convert powers to numpy and determine tick spacing
     powers_np = np.array(powers)
@@ -101,11 +107,11 @@ def plot_iteration_hetamap(m: Array, horizon: int, powers: Array, path: str):
     ax.set_title(f'Horizon = {horizon}')
 
     # Add colorbar with custom ticks/labels
-    cbar = plt.colorbar(img, ax=ax)
+    cbar = plt.colorbar(img, ax = ax)
     cbar.set_label('IWF Iterations')
 
     plt.tight_layout()
-    fig.savefig(path, dpi=300)
+    fig.savefig(path, dpi = 300)
     plt.close(fig)
     return
 
@@ -143,13 +149,27 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: flo
     return jnp.concatenate([xt[None, :], X])
 
 if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--horizon', type = int, default = 50)
+    args = parser.parse_args()
+
+    print(f'GPU devices: {jax.devices()}')
+
     ## Hyperparams
     key = jax.random.key(5)
-    steps = 100 #1500    ## simulation horizon
-    alpha = 0.01    ## smoothing for synchronous IWF
-    horizon = 60   ## empowerment horizon
+    steps = 1500                ## simulation horizon
+    alpha = 0.01                ## smoothing for synchronous IWF
+    horizon = args.horizon      ## empowerment horizon
+    num_powers = 30             ## resolution of the sweep
+    powers = jnp.linspace(0.5, 3.0, num_powers)
+    device_batch_size = 50
+    num_devices = jax.device_count()
 
-    ## create a function that will execute run_multi_agent_empowerment in parallel
+    output_dir = Path(f'sweep_power/horizon={horizon}')
+    output_dir.mkdir(parents = True, exist_ok = True)
+
+    ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
+    ## holding the number of simulation steps constant.
     batch_run_multiagent_empowerment = jax.jit(
         jax.vmap(
             lambda _dyn, _U, _power, _alpha, _key : run_multiagent_empowerment(_dyn, _U, _power, _alpha, steps, _key),
@@ -158,6 +178,7 @@ if __name__ == '__main__':
         static_argnums = 0
     )
 
+    ## executes batch_run_multiagent_empowerment in parallel on all available devices
     pmap_batch_run_multiagent_empowerment = jax.pmap(
         batch_run_multiagent_empowerment,
         in_axes = (None, None, 0, None, 0),
@@ -167,95 +188,94 @@ if __name__ == '__main__':
     ## create a function to evaluate the outcome of a batch of linked_pendulum runs
     batch_get_linked_pendulum_outcome = jax.vmap(get_linked_pendulum_outcome)
 
-    print(f'GPU devices: {jax.devices()}')
-    print(f'Starting sweep at {time.ctime()}')
-
     ## Load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
-    dyn = Dynamics(path=xml_path)
-    print(f'Timestep = {dyn.mjx_model.opt.timestep}')
+    dyn = Dynamics(path = xml_path)
+    dt = dyn.mjx_model.opt.timestep
+    print(f'Timestep = {dt}')
     print(f'Horizon = {horizon}')
 
     ## create zero control sequence
     U = jnp.zeros((horizon, dyn.control_dim))
 
-    ## Parameter sweep
-    powers = jnp.linspace(0.5, 3.0, 30)
-    num_powers = powers.shape[0]
+    ## create indexes for the heatmap
     I, J = jnp.meshgrid(jnp.arange(num_powers), jnp.arange(num_powers), indexing='ij')
     ## all possible combinations of powers
     pairs = jnp.stack([powers[I], powers[J]], axis=-1).reshape(-1, 2)
 
-
-    D = jax.device_count()
-    ## Batch processing
-    # per_batch_size = 50
-    per_device_batch = 2
-    batch_size = per_device_batch * D
+    ## compute number of batches, effective_batch_size
+    effective_batch_size = device_batch_size * num_devices
     num_pairs = pairs.shape[0]
-    num_batches = (num_pairs + batch_size - 1) // batch_size
+    num_batches = (num_pairs + effective_batch_size - 1) // effective_batch_size
 
-    batch_idx = 0 ## select a batch
-    assert batch_idx < num_batches
+    def prepare_batch(start_idx: int, end_idx: int):
 
-    start_idx = batch_idx * batch_size
-    end_idx = min((batch_idx + 1) * batch_size, num_pairs)
-    B = end_idx - start_idx
-    batch_pairs = pairs[start_idx:end_idx]
-    batch_keys = jax.random.split(key, B)
+        '''
+        A function to prepare a batch of simulation parameters for execution on multiple gpus.
 
-    padded_B = per_device_batch * D
+        Args:
+        start_idx: The starting index of simulations
+        end_idx: The ending index of simulations
 
-    if B < per_device_batch * D:
-        pad_size = padded_B - B
-        batch_pairs = jnp.vstack([batch_pairs, jnp.zeros((pad_size, 2))])
-        batch_keys = jnp.concatenate([batch_keys, jax.random.split(key, pad_size)])
+        Returns:
+        batch_pairs_reshaped with size: (devices x device_batch_size x 2)
+        batch_keys_reshaped with size: (devices x device_batch_size)
+        '''
 
-    batch_pairs_reshaped = batch_pairs.reshape(D, per_device_batch, 2)
-    batch_keys_reshaped = batch_keys.reshape(D, per_device_batch)
+        ## the actual effective batch size might be smaller than the effective batch size
+        actual_effective_batch_size = end_idx - start_idx
+        batch_pairs = pairs[start_idx:end_idx]
+        batch_keys = jax.random.split(key, actual_effective_batch_size)
 
+        ## pads the pairs and keys if the actual batch size is less than the expected batch size
+        if actual_effective_batch_size < effective_batch_size:
+            pad_size = effective_batch_size - actual_effective_batch_size
+            batch_pairs = jnp.vstack([batch_pairs, jnp.zeros((pad_size, 2))])
+            batch_keys = jnp.concatenate([batch_keys, jax.random.split(key, pad_size)])
 
-    print(batch_pairs_reshaped.shape)
+        ## reshape so that the leading index is num_devices so pmap broadcasts correctly
+        batch_pairs_reshaped = batch_pairs.reshape(num_devices, device_batch_size, 2)
+        batch_keys_reshaped = batch_keys.reshape(num_devices, device_batch_size)
+        return batch_pairs_reshaped, batch_keys_reshaped
+    
+    ## initialize empty heatmap
+    outcomes = jnp.zeros((num_powers, num_powers))
 
-    # batch_X = batch_run_multiagent_empowerment(dyn, U, batch_pairs_reshaped[0], alpha, batch_keys_reshaped[0])
-    batch_X = pmap_batch_run_multiagent_empowerment(dyn, U, batch_pairs_reshaped, alpha, batch_keys_reshaped)
-    print(batch_X)
-    print(batch_X.shape)
+    ## begin sweep
+    print(f'Starting sweep at {time.ctime()}')
+    start_time = time.time()
 
+    for batch_idx in tqdm(range(num_batches), desc = f'Sweep (horizon={horizon})'):
 
-    # # Precompile JIT
-    # start_time = time.time()
-    # print('Precompiling JIT...')
-    # _ = batch_run_multiagent_empowerment(dyn, U, pairs[:1], alpha, steps, jax.random.split(key, 1))
-    # print('JIT compilation done')
+        start_idx = batch_idx * effective_batch_size
+        end_idx = min((batch_idx + 1) * effective_batch_size, num_pairs)
+        actual_effective_batch_size = end_idx - start_idx
+        batch_pairs, batch_keys = prepare_batch(start_idx, end_idx)
 
+        ## run in parallel
+        batch_start = time.time()
+        batch_X = pmap_batch_run_multiagent_empowerment(dyn, U, batch_pairs, alpha, batch_keys)
+        batch_time = time.time() - batch_start
 
-    # outcomes = jnp.zeros((num_powers, num_powers))
-    # for batch_idx in tqdm(range(num_batches), desc = f'Sweep (horizon={horizon})'):
-        
-    #     start_idx = batch_idx * batch_size
-    #     end_idx = min((batch_idx + 1) * batch_size, num_pairs)
-    #     batch_pairs = pairs[start_idx:end_idx]
-    #     batch_keys = jax.random.split(key, end_idx - start_idx)
+        batch_X = batch_X.reshape(effective_batch_size, steps + 1, dyn.state_dim)
+        ## evaluate the outcome of each simulation in the batch
+        batch_outcomes = batch_get_linked_pendulum_outcome(batch_X)
 
-    #     batch_start = time.time()
-    #     batch_X = batch_run_multiagent_empowerment(dyn, U, batch_pairs, alpha, steps, batch_keys)
-    #     batch_outcomes = batch_get_linked_pendulum_outcome(batch_X)
-    #     batch_time = time.time() - batch_start
+        batch_outcomes = batch_outcomes.reshape(-1)[:actual_effective_batch_size]
+        batch_I = I.reshape(-1)[start_idx:end_idx]
+        batch_J = J.reshape(-1)[start_idx:end_idx]
+        outcomes = outcomes.at[batch_I, batch_J].set(batch_outcomes)
+        batch_pairs = batch_pairs.reshape(effective_batch_size, 2)[:actual_effective_batch_size]
 
-    #     batch_I = I.reshape(-1)[start_idx:end_idx]
-    #     batch_J = J.reshape(-1)[start_idx:end_idx]
-    #     outcomes = outcomes.at[batch_I, batch_J].set(batch_outcomes)
+        ## save trajectories, outcomes, and power pairs
+        jnp.save(output_dir / f'X_batch_{batch_idx}.npy', batch_X)
+        jnp.save(output_dir / f'outcomes_batch_{batch_idx}.npy', batch_outcomes)
+        jnp.save(output_dir / f'pairs_batch_{batch_idx}.npy', batch_pairs)
+        print(f'Batch {batch_idx + 1}/{num_batches} ({end_idx}/{num_pairs} simulations) took {batch_time:.2f} seconds, saved X, outcomes, and pairs')
 
-    #     # Save trajectories, outcomes, and power pairs
-    #     jnp.save(f'horizon={horizon}_X_batch_{batch_idx}.npy', batch_X)
-    #     jnp.save(f'horizon={horizon}_outcomes_batch_{batch_idx}.npy', batch_outcomes)
-    #     jnp.save(f'horizon={horizon}_pairs_batch_{batch_idx}.npy', batch_pairs)
-    #     print(f'Batch {batch_idx + 1}/{num_batches} ({end_idx}/{num_pairs} simulations) took {batch_time:.2f} seconds, saved X, outcomes, and pairs')
+    ## save final outcomes and powers
+    jnp.save(output_dir / 'outcomes.npy', outcomes)
+    jnp.save(output_dir / 'powers.npy', powers)
+    plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
 
-    # # Save final outcomes and powers
-    # jnp.save(f'horizon={horizon}_outcomes.npy', outcomes)
-    # jnp.save(f'horizon={horizon}_powers.npy', powers)
-    # plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = f'horizon={horizon}_outcome_heatmap.png')
-
-    # print(f'Completed sweep at {time.ctime()}, total time {time.time() - start_time:.2f} seconds')
+    print(f'Completed sweep at {time.ctime()}, total time {time.time() - start_time:.2f} seconds')

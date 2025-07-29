@@ -1,6 +1,4 @@
 from pathlib import Path
-
-import jax
 from jax import numpy as jnp
 
 from soc_emp import Dynamics

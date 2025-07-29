@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=sweep          # Name of the job
 #SBATCH --partition=h100          # Request the h100 partition
-#SBATCH --gres=gpu:1             # Request 1 GPU
+#SBATCH --gres=gpu:4              # Request GPU
 #SBATCH --cpus-per-task=16
 #SBATCH --ntasks=1               # Number of tasks
 #SBATCH --exclusive              # Exclusive node access
-#SBATCH --time=24:00:00          # Max runtime (1 hour, sufficient for 1 horizon)
+#SBATCH --time=24:00:00          # Max runtime
 #SBATCH --output=slurm-%j.out    # Output file
 #SBATCH --error=slurm-%j.err     # Error file
 
@@ -13,4 +13,4 @@ source ~/miniforge3/etc/profile.d/conda.sh
 conda activate soc_emp
 
 # Run your Python script
-python scripts/linked_pendulum/sweep.py
+python scripts/linked_pendulum/sweep.py --horizon 40

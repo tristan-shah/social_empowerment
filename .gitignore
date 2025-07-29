@@ -1,5 +1,9 @@
 results/
 results_random_init/
+sweep_power/
+*.err
+*.out
+machinefile.*
 
 *.mp4
 *.png
