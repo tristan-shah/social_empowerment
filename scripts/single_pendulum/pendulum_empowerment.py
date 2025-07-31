@@ -9,26 +9,29 @@ if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
     ## simulation horizon
-    empowerment_horizon = 25 #50
-    max_power = 1.0
-    T = 1000
+    horizon = 50
+    max_power = 0.75 #1.0
+    steps = 1500
 
     ## load in xml
     xml_path = 'xml/custom/pendulum.xml'
-    dyn = Dynamics(path = xml_path)
+    dyn = Dynamics(path = xml_path, dt = 0.01)
+    dt = dyn.mjx_model.opt.timestep
+    print(f'Timestep = {dt}')
+    print(f'Horizon = {horizon}')
 
     ## initialize state
     xt = dyn.init_state()
 
     ## tensor for state storage
-    X = jnp.zeros((T + 1, dyn.state_dim))
+    X = jnp.zeros((steps + 1, dyn.state_dim))
     X = X.at[0].set(xt)
 
     ## zero control planning horizon
-    U = jnp.zeros((empowerment_horizon, dyn.control_dim))
+    U = jnp.zeros((horizon, dyn.control_dim))
 
     empowerment_hist = []
-    for t in range(T):
+    for t in range(steps):
 
         _, B = dyn.linearize(xt, jnp.zeros(dyn.control_dim)) ## obtain control gain
         grad_E = compute_empowerment_grad(dyn, xt, U, max_power) ## compute gradient of empowerment
@@ -57,4 +60,4 @@ if __name__ == '__main__':
     fig.savefig(f'pendulum_empowerment.png', dpi = 300)
 
     ## render an animation
-    dyn.render(X, path = 'pendulum_empowerment.mp4', skip = 2)
+    dyn.render(X, path = 'pendulum_empowerment.mp4', skip = 5)

@@ -140,14 +140,15 @@ def split_channel_matrix(F: Array, num_agents: int):
     # assert F.shape[2] % num_agents == 0
 
     ## chunking the channel matrix along the action dimention to split the effect of each agent
+    ## assumes that each agent has the same dimention of actions so it chunks it evenly
     F_agent = jnp.split(F, num_agents, axis = 2)
     F_agent = jnp.stack(F_agent, axis = 0)
     F_agent = rearrange(F_agent, 'a x t u -> a x (t u)') ## collapse the action dimention into time
 
     ## for each agent, the effect of all other agents is considered noise
     F_noise = F_agent[None, :, :, :].repeat(num_agents, axis = 0)
-
     ## create a mask with ones everywhere, except zeros on the diagonal
+    ## zeroing out the diagonal means that the noise for each agent will not include its own channel matrix
     mask = jnp.ones_like(F_noise)
     mask = mask.at[jnp.arange(num_agents), jnp.arange(num_agents)].set(0.0)
     F_noise = F_noise * mask
@@ -174,11 +175,17 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     _, E, M = jnp.linalg.svd(H, full_matrices = False)
     eigs = jnp.power(E, 2.0).clip(min = 1e-12)
 
+    ## compute waterline (for each agent) [nu_0, nu_1, ..., nu_k]
     nu = batch_water_filling(eigs, power)
     p = batch_compute_power(nu, eigs)
     
     ## update covariances
     P = batch_diag(p)
+    '''
+    M.T P M appears to be the reverse of what is defined in boyd's paper on IWF but it is correct because 
+    SVD returns a transposed orthoganal matrix.
+    '''
+    ## obtain dense covariance matrices: M.T P M
     S = einsum(M, P, M, 'a x1 m1, a x1 x2, a x2 m2 -> a m1 m2')
 
     ## channel capacities
