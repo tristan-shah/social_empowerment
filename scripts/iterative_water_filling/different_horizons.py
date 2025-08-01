@@ -1,9 +1,15 @@
+from typing import List
+
 import jax
 from jax import Array
 from jax import numpy as jnp
 import matplotlib.pyplot as plt
 
 from soc_emp.empowerment import unroll, compute_F_from_A_B, split_channel_matrix, waterfilling_implicit, compute_power
+
+def waterfilling_operator(H_agent: Array, H_noise: List[Array]):
+    return
+
 
 if __name__ == '__main__':
     print(f'GPU devices: {jax.devices()}')
@@ -72,53 +78,53 @@ if __name__ == '__main__':
             else:
                 F_noise[i].append(F[cross_idx])
 
-    # ## transpose
-    # F_noise = [[F_noise[j][i] for j in range(num_agents)] for i in range(num_agents)]
+    ## transpose
+    F_noise = [[F_noise[j][i] for j in range(num_agents)] for i in range(num_agents)]
 
-    # iterations = 5
-    # hist = jnp.zeros((iterations, num_agents))
+    iterations = 5
+    hist = jnp.zeros((iterations, num_agents))
 
-    # for iteration in range(iterations):
-    #     ## iterate over agents
-    #     for i in range(len(F_noise)):
+    for iteration in range(iterations):
+        ## iterate over agents
+        for i in range(len(F_noise)):
 
-    #         S_noise = S_z[i]
-    #         ## compute the total noise from other agents
-    #         for j in range(len(F_noise[i])):
-    #             S_noise = S_noise + F_noise[i][j] @ S[j] @ F_noise[i][j].T
+            S_noise = S_z[i]
+            ## compute the total noise from other agents
+            for j in range(len(F_noise[i])):
+                S_noise = S_noise + F_noise[i][j] @ S[j] @ F_noise[i][j].T
             
-    #         ## eigen-decomp on noise
-    #         D, Q = jnp.linalg.eigh(S_noise)
-    #         D_inv_sqrt = jnp.diag((D + 1e-12) ** -0.5)
+            ## eigen-decomp on noise
+            D, Q = jnp.linalg.eigh(S_noise)
+            D_inv_sqrt = jnp.diag((D + 1e-12) ** -0.5)
 
-    #         ## compute new channel matrix (1/\sqrt{D}) @ Q.T @ F_agent
-    #         H = D_inv_sqrt @ Q.T @ F_agent[i]
-    #         ## compute snr levels
-    #         _, E, M = jnp.linalg.svd(H, full_matrices = False)
-    #         eigs = jnp.power(E, 2.0).clip(min = 1e-12)
+            ## compute new channel matrix (1/\sqrt{D}) @ Q.T @ F_agent
+            H = D_inv_sqrt @ Q.T @ F_agent[i]
+            ## compute snr levels
+            _, E, M = jnp.linalg.svd(H, full_matrices = False)
+            eigs = jnp.power(E, 2.0).clip(min = 1e-12)
 
-    #         ## compute waterline (for each agent) [nu_0, nu_1, ..., nu_k]
-    #         nu = waterfilling_implicit(eigs, power[i])
-    #         p = compute_power(nu, eigs)
+            ## compute waterline (for each agent) [nu_0, nu_1, ..., nu_k]
+            nu = waterfilling_implicit(eigs, power[i])
+            p = compute_power(nu, eigs)
             
-    #         ## update covariances
-    #         P = jnp.diag(p)
+            ## update covariances
+            P = jnp.diag(p)
 
-    #         '''
-    #         M.T P M appears to be the reverse of what is defined in boyd's paper on IWF but it is correct because 
-    #         SVD returns a transposed orthoganal matrix.
-    #         '''
-    #         ## obtain dense covariance matrices: M.T P M
-    #         S[i] = M.T @ P @ M
+            '''
+            M.T P M appears to be the reverse of what is defined in boyd's paper on IWF but it is correct because 
+            SVD returns a transposed orthoganal matrix.
+            '''
+            ## obtain dense covariance matrices: M.T P M
+            S[i] = M.T @ P @ M
 
-    #         ## channel capacities
-    #         e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs))
-    #         hist = hist.at[iteration, i].set(e)
+            ## channel capacities
+            e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs))
+            hist = hist.at[iteration, i].set(e)
 
-    # print(hist)
+    print(hist)
 
     
-    # fig, ax = plt.subplots(1, 1)
-    # for a in range(num_agents):
-    #     ax.plot(hist[:, a])
-    # plt.show()
+    fig, ax = plt.subplots(1, 1)
+    for a in range(num_agents):
+        ax.plot(hist[:, a])
+    plt.show()
