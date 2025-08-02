@@ -96,7 +96,7 @@ if __name__ == '__main__':
     u0 = jnp.linspace(-1.0, 1.0, trials)[:, None]
 
     e_hat_linear = e + u0 @ vu
-    e_hat_quadratic = e + u0 @ vu - 0.5 * einsum(u0, Vuu, u0, 'b u1, u1 u2, b u2 -> b')
+    e_hat_quadratic = e + u0 @ vu + 0.5 * einsum(u0, Vuu, u0, 'b u1, u1 u2, b u2 -> b')
 
     U_batch = jnp.zeros((trials, steps+1, dyn.control_dim))
     U_batch = U_batch.at[:, 0, :].set(u0)
