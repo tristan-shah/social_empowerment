@@ -39,5 +39,6 @@
     <actuator>
         <!-- Optional: torque actuator to drive the pendulum -->
         <motor joint="hinge" ctrlrange="-1 1" gear="1"/>
+        <!-- <motor joint="hinge" gear="1"/> -->
     </actuator>
 </mujoco>
