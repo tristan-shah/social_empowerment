@@ -240,12 +240,13 @@ if __name__ == '__main__':
     ilqr = iLQR(dyn, Q, R)
     X = unroll(dyn, xt, U)
 
-    alphas = jnp.linspace(0.01, 1.0, 20)
+    # alphas = jnp.linspace(0.01, 1.0, 30)
+    alphas = jnp.linspace(0.0, 1.0, 30)
 
     batch_forward = jax.vmap(ilqr.forward, in_axes = (None, None, None, None, 0))
 
     cost = []
-    for i in range(10):
+    for i in range(20):
 
         A, B = ilqr.batch_linearize(X[:-1], U)
 
@@ -260,26 +261,30 @@ if __name__ == '__main__':
         X = X_batch[idx]
         U = U_batch[idx]
         J = J_batch[idx]
-
-        # fig, ax = plt.subplots(1, 1)
-        # ax.plot(J_batch)
-        # plt.show()
-        # plt.close(fig)
-
         print(i, J, alphas[idx])
+
         cost.append(J)
 
     fig, ax = plt.subplots(1, 2)
+    ax[0].set_ylabel('Trajectory Cost')
+    ax[0].set_xlabel('Iterations')
     ax[0].plot(cost)
 
+    ax[1].set_xlabel('Timestep')
+    ax[1].set_ylabel('Control')
     ## plot each control signal
     for i in range(U.shape[1]):
         ax[1].plot(U[:, i])
 
     # fig.savefig('ball_cost.png', dpi = 300)
     fig.savefig('go_cost.png', dpi = 300)
-    # fig.savefig('panda.png', dpi = 300)
 
     # dyn.render(X, path = 'ball.mp4', skip = 10, elevation = -90)
-    dyn.render(X, path = 'go.mp4', skip = 10)
-    # dyn.render(X, path = 'panda.mp4', skip = 10)
+    dyn.render(
+        X,
+        path = 'go.mp4',
+        skip = 20, 
+        distance = 2.0, 
+        elevation = -20,
+        lookat = jnp.array([0.8, 0.0, 0.5])
+        )

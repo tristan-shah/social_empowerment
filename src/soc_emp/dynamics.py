@@ -47,8 +47,11 @@ class Dynamics:
         if dt is not None:
             model.opt.timestep = dt
 
-        model.vis.global_.offheight = 720
-        model.vis.global_.offwidth = 1280
+        model.vis.global_.offheight = 1080
+        model.vis.global_.offwidth = 1920
+
+        # model.vis.global_.offheight = 720
+        # model.vis.global_.offwidth = 1280
         # model.tendon_stiffness[0] = 3.0 ## default
         self.model = model
 
@@ -85,7 +88,8 @@ class Dynamics:
             skip: int = 5
             ):
 
-        renderer = mujoco.Renderer(self.model, height = 720, width = 1280)
+        # renderer = mujoco.Renderer(self.model, height = 720, width = 1280)
+        renderer = mujoco.Renderer(self.model, height = 1080, width = 1920)
 
         # Create a free camera
         camera = mujoco.MjvCamera()
