@@ -83,7 +83,7 @@ class iLQR:
         self.low = self.dyn.mjx_model.actuator_ctrlrange[:, 0]
         self.high = self.dyn.mjx_model.actuator_ctrlrange[:, 1]
 
-    def forward(self, X: Array, k: Array, K: Array, alpha: float):
+    def forward(self, X: Array, U: Array, k: Array, K: Array, alpha: float):
 
         low = self.low
         high = self.high
@@ -96,11 +96,14 @@ class iLQR:
 
         for t in range(T):
 
+            ## compute deviation in current trajectory
             delta_x = X_new[t] - X[t]
-            # delta_x = compute_delta_x(self.dyn.mjx_model, X_new[t], X[t])
-            ut = alpha * k[t] + K[t] @ delta_x
+
+            ## compute new control
+            ut = U[t] + alpha * k[t] + K[t] @ delta_x
             ut = ut.clip(low, high)
 
+            ## propagate dynamics with new control
             xt = self.dyn.step(xt, ut)
 
             X_new = X_new.at[t+1].set(xt)
@@ -121,6 +124,7 @@ class iLQR:
         L = Q.copy()
         M = jnp.zeros_like(Q)
 
+        # U_tilde = jnp.zeros((T, du))
         k = jnp.zeros((T, du))
         K = jnp.zeros((T, du, dx))
 
@@ -131,7 +135,9 @@ class iLQR:
             ## gradient of policy
             grad_pi = - S @ B[t].T @ P @ A[t]
             ## compute gains
-            k = k.at[t].set( S @ B[t].T @ (P @ B[t] @ U[t] - E) ) ## feedforward
+            # k = k.at[t].set( S @ B[t].T @ (P @ B[t] @ U[t] - E) ) ## feedforward
+            # U_tilde = U_tilde.at[t].set(S @ B[t].T @ P @ B[t] @ U[t])
+            k = k.at[t].set( - S @ B[t].T @ E ) ## feedforward
             K = K.at[t].set(grad_pi) ## feedback
             ## total derivative of dynamics
             total_grad = A[t] + B[t] @ grad_pi
@@ -148,8 +154,9 @@ if __name__ == '__main__':
 
     # integrator = 'implicitfast'
     integrator = 'euler'
-    dyn = Dynamics(path = 'xml/franka_emika_panda/mjx_single_cube.xml', integrator = integrator, dt = 0.005)
-    # dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.0005)
+
+    # dyn = Dynamics(path = 'xml/franka_emika_panda/mjx_single_cube.xml', integrator = integrator, dt = 0.005)
+    dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.0005)
     # dyn = Dynamics(path = 'xml/unitree_g1/scene_mjx.xml', integrator = integrator, dt = 0.001)
     # dyn = Dynamics(path = 'xml/custom/ball.xml', integrator = integrator)
 
@@ -164,21 +171,22 @@ if __name__ == '__main__':
 
     xt = dyn.init_state()
     home = dyn.model.keyframe('home')
-    # xt = xt.at[:dyn.nq].set(home.qpos)
+    xt = xt.at[:dyn.nq].set(home.qpos)
 
     print(xt)
 
     for jnt_type, jnt_qposadr in zip(dyn.mjx_model.jnt_type, dyn.mjx_model.jnt_qposadr):
         print(mjx.JointType(jnt_type), jnt_qposadr)
 
-    steps = 1000
+    # steps = 1000
+    steps = 5000
 
     '''for ball'''
     # ## building goal state
     # goal_qpos = jnp.array(home.qpos)
     # goal_qpos = jnp.zeros(dyn.nq)
-    # goal_qpos = goal_qpos.at[0].set(1.0) ## x
-    # goal_qpos = goal_qpos.at[1].set(-0.7) ## y
+    # goal_qpos = goal_qpos.at[0].set(1.2) ## x
+    # goal_qpos = goal_qpos.at[1].set(-1.0) ## y
     # goal_qpos = goal_qpos.at[2].set(0.1) ## z
     # goal_qvel = jnp.zeros(dyn.nv)
     # goal = jnp.concatenate([goal_qpos, goal_qvel])
@@ -188,49 +196,53 @@ if __name__ == '__main__':
     # Q = Q.at[0, 0].set(1.0)
     # Q = Q.at[1, 1].set(1.0)
     # Q = Q.at[2, 2].set(1.0)
-    # # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.00001) ## velocity penalty
-    # R = jnp.eye(dyn.control_dim) * 0.0001
+    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.001) ## velocity penalty
+    # # R = jnp.eye(dyn.control_dim) * 0.001
+    # # R = jnp.eye(dyn.control_dim) * 0.1
+    # R = jnp.eye(dyn.control_dim) * 1.0
     # U = jnp.zeros((steps, dyn.control_dim))
 
     '''for go2'''
-    # ## building goal state
-    # goal_qpos = jnp.array(home.qpos)
-    # # goal_qpos = goal_qpos.at[0].set(0.4) ## x
-    # goal_qvel = jnp.zeros(dyn.nv)
-    # goal = jnp.concatenate([goal_qpos, goal_qvel])
-
-    # ## building Q R matrices
-    # Q = jnp.zeros((dyn.state_dim, dyn.state_dim))
-    # Q = Q.at[0:7,0:7].set(jnp.eye(7)) ## main body
-    # Q = Q.at[7:dyn.nq, 7:dyn.nq].set(jnp.eye(dyn.nq - 7) * 0.5) ## all other parts
-    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0001) ## velocity penalty
-
-    # R = jnp.eye(dyn.control_dim) * 0.0001
-    # U = jnp.tile(home.ctrl[None, :], (steps, 1))
-
-    '''panda'''
     ## building goal state
-    # goal_qpos = jnp.zeros(dyn.nq)
     goal_qpos = jnp.array(home.qpos)
+    # goal_qpos = goal_qpos.at[0].set(0.4) ## x
+    goal_qpos = goal_qpos.at[0].set(1.0) ## x
     goal_qvel = jnp.zeros(dyn.nv)
     goal = jnp.concatenate([goal_qpos, goal_qvel])
 
     ## building Q R matrices
     Q = jnp.zeros((dyn.state_dim, dyn.state_dim))
-    Q = Q.at[:dyn.nq, :dyn.nq].set(jnp.eye(dyn.nq))
+    Q = Q.at[0:7,0:7].set(jnp.eye(7)) ## main body
+    Q = Q.at[7:dyn.nq, 7:dyn.nq].set(jnp.eye(dyn.nq - 7) * 0.5) ## all other parts
     Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0001) ## velocity penalty
 
-    R = jnp.eye(dyn.control_dim) * 0.1
-    U = jnp.zeros((steps, dyn.control_dim))
+    R = jnp.eye(dyn.control_dim) * 0.0001
+    U = jnp.tile(home.ctrl[None, :], (steps, 1))
 
+    '''panda'''
+    # ## building goal state
+    # # goal_qpos = jnp.zeros(dyn.nq)
+    # goal_qpos = jnp.array(home.qpos)
+    # goal_qvel = jnp.zeros(dyn.nv)
+    # goal = jnp.concatenate([goal_qpos, goal_qvel])
+
+    # ## building Q R matrices
+    # Q = jnp.zeros((dyn.state_dim, dyn.state_dim))
+    # Q = Q.at[:dyn.nq, :dyn.nq].set(jnp.eye(dyn.nq))
+    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0001) ## velocity penalty
+
+    # R = jnp.eye(dyn.control_dim) * 0.1
+    # U = jnp.zeros((steps, dyn.control_dim))
+
+    '''
+    run iLQR
+    '''
     ilqr = iLQR(dyn, Q, R)
     X = unroll(dyn, xt, U)
 
-    # dyn.render(X, path = 'panda.mp4', skip = 2)
-
     alphas = jnp.linspace(0.01, 1.0, 20)
 
-    batch_forward = jax.vmap(ilqr.forward, in_axes = (None, None, None, 0))
+    batch_forward = jax.vmap(ilqr.forward, in_axes = (None, None, None, None, 0))
 
     cost = []
     for i in range(10):
@@ -238,12 +250,10 @@ if __name__ == '__main__':
         A, B = ilqr.batch_linearize(X[:-1], U)
 
         e = (X - goal)
-        # e = jax.vmap(lambda x, g: compute_delta_x(dyn.mjx_model, x, g), in_axes=(0, None))(X, goal)
         k, K = ilqr.backward(e, A, B, U)
 
-        X_batch, U_batch = batch_forward(X, k, K, alphas)
+        X_batch, U_batch = batch_forward(X, U, k, K, alphas)
         e_batch = X_batch - goal
-        # e_batch = jax.vmap(lambda x, g: jax.vmap(lambda x_t, g_t: compute_delta_x(dyn.mjx_model, x_t, g_t), in_axes=(0, None))(x, g), in_axes=(0, None))(X_batch, goal)
         J_batch = einsum(e_batch, Q, e_batch, 'n t x1, x1 x2, n t x2 -> n') + einsum(U_batch, R, U_batch, 'n t u1, u1 u2, n t u2 -> n')
 
         idx = jnp.argmin(J_batch)
@@ -251,20 +261,25 @@ if __name__ == '__main__':
         U = U_batch[idx]
         J = J_batch[idx]
 
-        print(J_batch)
+        # fig, ax = plt.subplots(1, 1)
+        # ax.plot(J_batch)
+        # plt.show()
+        # plt.close(fig)
+
         print(i, J, alphas[idx])
         cost.append(J)
 
     fig, ax = plt.subplots(1, 2)
     ax[0].plot(cost)
 
+    ## plot each control signal
     for i in range(U.shape[1]):
         ax[1].plot(U[:, i])
 
     # fig.savefig('ball_cost.png', dpi = 300)
-    # fig.savefig('go_cost.png', dpi = 300)
-    fig.savefig('panda.png', dpi = 300)
+    fig.savefig('go_cost.png', dpi = 300)
+    # fig.savefig('panda.png', dpi = 300)
 
     # dyn.render(X, path = 'ball.mp4', skip = 10, elevation = -90)
-    # dyn.render(X, path = 'go.mp4', skip = 10)
-    dyn.render(X, path = 'panda.mp4', skip = 10)
+    dyn.render(X, path = 'go.mp4', skip = 10)
+    # dyn.render(X, path = 'panda.mp4', skip = 10)
