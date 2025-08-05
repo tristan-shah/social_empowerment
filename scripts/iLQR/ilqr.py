@@ -179,7 +179,7 @@ if __name__ == '__main__':
         print(mjx.JointType(jnt_type), jnt_qposadr)
 
     # steps = 1000
-    steps = 5000
+    steps = 3000
 
     '''for ball'''
     # ## building goal state
@@ -205,18 +205,25 @@ if __name__ == '__main__':
     '''for go2'''
     ## building goal state
     goal_qpos = jnp.array(home.qpos)
-    # goal_qpos = goal_qpos.at[0].set(0.4) ## x
     goal_qpos = goal_qpos.at[0].set(1.0) ## x
     goal_qvel = jnp.zeros(dyn.nv)
     goal = jnp.concatenate([goal_qpos, goal_qvel])
-
     ## building Q R matrices
     Q = jnp.zeros((dyn.state_dim, dyn.state_dim))
+
+    ## original Q weights
+    # Q = Q.at[0:7,0:7].set(jnp.eye(7)) ## main body
+    # Q = Q.at[7:dyn.nq, 7:dyn.nq].set(jnp.eye(dyn.nq - 7) * 0.5) ## all other parts
+    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0001) ## velocity penalty
+    ## original R weights
+    # R = jnp.eye(dyn.control_dim) * 0.0001
+
+    ## new Q weights
     Q = Q.at[0:7,0:7].set(jnp.eye(7)) ## main body
     Q = Q.at[7:dyn.nq, 7:dyn.nq].set(jnp.eye(dyn.nq - 7) * 0.5) ## all other parts
-    Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0001) ## velocity penalty
-
-    R = jnp.eye(dyn.control_dim) * 0.0001
+    Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.00001)  # Slightly higher velocity penalty
+    ## new R weights
+    R = jnp.eye(dyn.control_dim) * 0.001
     U = jnp.tile(home.ctrl[None, :], (steps, 1))
 
     '''panda'''
@@ -240,13 +247,12 @@ if __name__ == '__main__':
     ilqr = iLQR(dyn, Q, R)
     X = unroll(dyn, xt, U)
 
-    # alphas = jnp.linspace(0.01, 1.0, 30)
-    alphas = jnp.linspace(0.0, 1.0, 30)
+    alphas = jnp.linspace(1e-4, 1.0, 20)
 
     batch_forward = jax.vmap(ilqr.forward, in_axes = (None, None, None, None, 0))
 
     cost = []
-    for i in range(20):
+    for i in range(10):
 
         A, B = ilqr.batch_linearize(X[:-1], U)
 
@@ -274,7 +280,7 @@ if __name__ == '__main__':
     ax[1].set_ylabel('Control')
     ## plot each control signal
     for i in range(U.shape[1]):
-        ax[1].plot(U[:, i])
+        ax[1].plot(U[:, i], alpha = 0.2)
 
     # fig.savefig('ball_cost.png', dpi = 300)
     fig.savefig('go_cost.png', dpi = 300)

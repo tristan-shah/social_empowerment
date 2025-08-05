@@ -41,7 +41,7 @@ def compute_empowerment(dyn: Dynamics, x0: Array, U: Array, power: float):
 
 if __name__ == '__main__':
 
-    horizon = 400
+    horizon = 5#400
     trials = 1000
     power = 1.0
     alpha = 1.0
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     u_star = jnp.zeros((dyn.control_dim))
 
     hist = []
-    for i in range(500):
+    for i in range(1):
 
         U_bar = jnp.zeros((horizon, dyn.control_dim))
         U_bar = U_bar.at[0].set(u_star)
@@ -108,7 +108,8 @@ if __name__ == '__main__':
             T_inv,
             einsum(Huu, sigma, Huu, 'x1 u1 u2, u1 u3, x2 u3 u4 -> u2 x1 x2 u4'),
             'x1 x2, u1 x2 x3 u2 -> u1 x1 x3 u2')
-        Vuu = jnp.trace(Vuu, axis1 = 1, axis2 = 2).clip(min = 1.0, max = 2000)
+        Vuu = jnp.trace(Vuu, axis1 = 1, axis2 = 2)
+        Vuu = Vuu.clip(max = 1000)
 
         ## solve the quadratic for the maximum
         u_star = jnp.linalg.inv(Vuu) @ (Vuu @ u_star + vu * alpha)
@@ -154,5 +155,5 @@ if __name__ == '__main__':
     fig.tight_layout()
     # fig.savefig(f'single_pendulum_horizon={horizon * dt}_x0={x0}.png', dpi = 300)
     # fig.savefig(f'double_pendulum_horizon={horizon * dt}_x0={x0}.png', dpi = 300)
-    fig.savefig('iterations=1_test.png', dpi = 300)
+    fig.savefig('short.png', dpi = 300)
     plt.show()
