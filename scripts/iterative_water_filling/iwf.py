@@ -9,15 +9,13 @@ if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
     receive_dim = 10
-    num_agents = 3
+    num_agents = 10
     horizon = 20
-    agent_transmit_dim = 10
-    # transmit_dim = num_agents * agent_transmit_dim
+    agent_transmit_dim = 20
 
     power = jnp.ones(num_agents)
-    iterations = 100
+    iterations = 500#100
     alpha = 0.7
-    # alpha = 0.0
     assert 0.0 <= alpha < 1.0
 
     ## construct a random channel matrix
@@ -36,6 +34,7 @@ if __name__ == '__main__':
 
     for i in range(iterations):
         e, S_ = waterfilling_operator(H_agent, H_noise, S, S_z, power)
+        ## simultanious iterative waterfilling update
         S = alpha * S + (1 - alpha) * S_
         hist = hist.at[i].set(e)
         print(e)

@@ -19,7 +19,7 @@ if __name__ == '__main__':
     alpha = 0.01
     horizon = jnp.array([254, 247, 148, 232])
     # power = jnp.array([0.75, 0.10, 1.40, 0.70])
-    power = jnp.ones(4)
+    power = jnp.ones(4) ## equal power allocation for each agent
 
     state_dim = 9
     control_dim = 5

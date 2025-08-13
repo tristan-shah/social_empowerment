@@ -11,11 +11,12 @@ if __name__ == '__main__':
     print(f'GPU devices: {jax.devices()}')
 
     ## hyperparams
-    key = jax.random.key(0)
+    key = jax.random.key(1)
     steps = 1500  ## simulation horizon
     alpha = 0.01
-    horizon = 46
-    power = jnp.array([0.75, 0.75])
+    horizon = 100
+    power = jnp.array([1.1, 1.0])
+    # power = jnp.array([2.0, 1.0])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -24,15 +25,13 @@ if __name__ == '__main__':
     print(f'Timestep = {dt}')
     print(f'Horizon = {horizon}')
 
-
     ## planning horizon should be the maximum of all agent's horizons
-    U = jnp.zeros((horizon.max(), dyn.control_dim))
+    U = jnp.zeros((horizon, dyn.control_dim))
 
     xt = dyn.init_state()
 
     X = jnp.zeros((steps+1, dyn.state_dim))
     X = X.at[0].set(xt)
-
 
     iterations = jnp.zeros(steps)
     empowerment = jnp.zeros((steps, 2))

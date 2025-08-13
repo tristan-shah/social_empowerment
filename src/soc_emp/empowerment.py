@@ -161,6 +161,17 @@ batch_compute_power = jax.jit(jax.vmap(compute_power))
 
 @jax.jit
 def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, power: Array):
+    '''
+    This is the core operator which updates each agent's covariance S[agent].
+    It takes in a batch of agent channel matrices (one for each agent) 
+    and also the interference channel matrix from all the other agents.
+
+    F_agent is the agent's channel matrix to its own state
+    F_noise is the interference channel from all other agents
+    S is the batch of covariance matrices
+    S_z is the observation noise (assumed to be the same for all agents)
+    power is the power budget for each agent
+    '''
 
     S_noise = einsum(F_noise, S, F_noise, 'a1 a2 x1 m1, a2 m1 m2, a1 a2 x2 m2 -> a1 x1 x2') + S_z
 
@@ -204,7 +215,7 @@ def compute_multiagent_empowerment(
 
     num_agents = len(power)
     horizon = U.shape[0]
-    dx = dyn.state_dim
+    # dx = dyn.state_dim
     du = dyn.control_dim // num_agents
     dm = du * horizon
 
@@ -257,7 +268,7 @@ def compute_multiagent_empowerment(
 
     return i, e
 
-def select_output(f, index):
+def select_output(f: callable, index: int):
     return lambda *args, **kwargs: f(*args, **kwargs)[index]
 
 compute_multiagent_empowerment = jax.jit(compute_multiagent_empowerment, static_argnums = 0)
