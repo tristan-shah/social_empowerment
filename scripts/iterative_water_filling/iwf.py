@@ -9,20 +9,27 @@ if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
     receive_dim = 10
-    num_agents = 30
-    horizon = 10
+    num_agents = 3
+    horizon = 20
     agent_transmit_dim = 10
-    transmit_dim = num_agents * agent_transmit_dim
+    # transmit_dim = num_agents * agent_transmit_dim
+
     power = jnp.ones(num_agents)
-    iterations = 50
-    alpha = 0.6
+    iterations = 100
+    alpha = 0.7
+    # alpha = 0.0
     assert 0.0 <= alpha < 1.0
 
-    H = jax.random.normal(key, (receive_dim, horizon, transmit_dim))
+    ## construct a random channel matrix
+    H = jax.random.normal(key, (receive_dim, horizon, num_agents * agent_transmit_dim))
 
     H_agent, H_noise = split_channel_matrix(H, num_agents)
 
-    S = batch_diag(jax.random.uniform(key, (num_agents, horizon * agent_transmit_dim)))
+    '''
+    construct the covariance matrix of each agent
+    the size of the covariance matrix will be determined by horizon and the size of its message.
+    '''
+    S = batch_diag(jax.random.uniform(key, (num_agents, horizon * agent_transmit_dim)) * 0.2)
     S_z = jnp.eye(receive_dim) * 1.0
 
     hist = jnp.zeros((iterations, num_agents))
@@ -34,6 +41,8 @@ if __name__ == '__main__':
         print(e)
 
     fig, ax = plt.subplots(1, 1)
+    ax.set_xlabel('Iterations')
+    ax.set_ylabel('Link Channel Capacity')
     for i in range(num_agents):
         ax.plot(hist[:, i])
     plt.show()

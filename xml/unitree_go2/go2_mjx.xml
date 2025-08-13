@@ -1,7 +1,8 @@
 <mujoco model="go2">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
-  <option cone="pyramidal" impratio="10" iterations="1" ls_iterations="5">
+  <!-- <option cone="pyramidal" impratio="10" iterations="1" ls_iterations="5"> -->
+  <option cone="pyramidal" impratio="100" iterations="1" ls_iterations="5">
     <flag eulerdamp="disable"/>
   </option>
 
@@ -194,6 +195,7 @@
     </body>
 
     <body name="goal_body" pos="1.0 0.0 0.3">
+    <!-- <body name="goal_body" pos="1.0 0.5 0.3"> -->
         <geom type="box" size="0.05 0.05 0.05" rgba="0 140 0 0.5" contype="0" conaffinity="0"/>
     </body>
         
