@@ -11,3 +11,6 @@ def split_state(xt: Array, nq: int):
 
 def get_state(data: Data):
     return jnp.concatenate([data.qpos, data.qvel])
+
+def select_output(f: callable, index: int):
+    return lambda *args, **kwargs: f(*args, **kwargs)[index]

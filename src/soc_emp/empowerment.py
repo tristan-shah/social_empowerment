@@ -4,6 +4,7 @@ from jax import numpy as jnp
 from einops import einsum, rearrange
 
 from soc_emp import Dynamics
+from soc_emp.utils import select_output
 
 tol = 1e-6
 
@@ -203,7 +204,8 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
 
-MAX_ITER = 10
+# MAX_ITER = 10
+MAX_ITER = 50
 
 def compute_multiagent_empowerment(
         dyn: Dynamics, 
@@ -219,7 +221,8 @@ def compute_multiagent_empowerment(
     du = dyn.control_dim // num_agents
     dm = du * horizon
 
-    S = jnp.zeros((num_agents, dm, dm))
+    # S = jnp.zeros((num_agents, dm, dm))
+    S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
     # S_z = jnp.eye(dx) + jnp.diag(jax.random.normal(key, (dx))) * 1e-5
 
     X = unroll(dyn, x0, U)
@@ -230,7 +233,9 @@ def compute_multiagent_empowerment(
     F_agent, F_noise = split_channel_matrix(F, num_agents)
 
     # hardcoded noise perturbation
-    S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
+    # S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
+    S_z = jnp.eye(2) * 0.0
+    # S_z = jnp.eye(2)
     
     ## egoistic double pendulum
     F_agent = jnp.stack([
@@ -267,9 +272,6 @@ def compute_multiagent_empowerment(
     i, S, e, e_prev = jax.lax.while_loop(cond_fun, body_fun, (0, S, e, e_prev))
 
     return i, e
-
-def select_output(f: callable, index: int):
-    return lambda *args, **kwargs: f(*args, **kwargs)[index]
 
 compute_multiagent_empowerment = jax.jit(compute_multiagent_empowerment, static_argnums = 0)
 compute_multiagent_empowerment_grad = jax.jit(

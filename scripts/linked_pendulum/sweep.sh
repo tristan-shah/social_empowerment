@@ -13,4 +13,4 @@ source ~/miniforge3/etc/profile.d/conda.sh
 conda activate soc_emp
 
 # Run your Python script
-python scripts/linked_pendulum/sweep.py --horizon 40
+python scripts/linked_pendulum/sweep.py --horizon 50 --alpha 0.2

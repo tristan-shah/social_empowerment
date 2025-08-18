@@ -151,6 +151,7 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: flo
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--horizon', type = int, default = 50)
+    parser.add_argument('--alpha', type = float, default = 0.01)
     args = parser.parse_args()
 
     print(f'GPU devices: {jax.devices()}')
@@ -166,6 +167,7 @@ if __name__ == '__main__':
     num_devices = jax.device_count()
 
     output_dir = Path(f'sweep_power/horizon={horizon}')
+    output_dir = Path(f'sweep_power/horizon={horizon}_alpha={alpha}_obsnoise=0.0')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 

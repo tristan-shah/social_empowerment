@@ -124,7 +124,6 @@ class iLQR:
         L = Q.copy()
         M = jnp.zeros_like(Q)
 
-        U_tilde = jnp.zeros((T, du))
         k = jnp.zeros((T, du))
         K = jnp.zeros((T, du, dx))
 
@@ -135,8 +134,10 @@ class iLQR:
             ## gradient of policy
             grad_pi = - S @ B[t].T @ P @ A[t]
             ## compute gains
-            U_tilde = U_tilde.at[t].set(S @ B[t].T @ P @ B[t] @ U[t])
-            k = k.at[t].set( - S @ B[t].T @ E ) ## feedforward
+            k = k.at[t].set(
+                 - S @ (R @ U[t] + B[t].T @ E)
+            ) ## feedforward
+
             K = K.at[t].set(grad_pi) ## feedback
             ## total derivative of dynamics
             total_grad = A[t] + B[t] @ grad_pi
@@ -146,8 +147,7 @@ class iLQR:
             L = total_grad.T @ L @ total_grad + Q
             M = total_grad.T @ M @ total_grad + grad_pi.T @ R @ grad_pi
 
-        # return k, K
-        return U_tilde, k, K
+        return k, K
     
 def render_go(dyn: Dynamics, X: Array, path: str):
     
@@ -168,10 +168,8 @@ if __name__ == '__main__':
     # integrator = 'implicitfast'
     integrator = 'euler'
 
-    # dyn = Dynamics(path = 'xml/franka_emika_panda/mjx_single_cube.xml', integrator = integrator, dt = 0.005)
-    dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.0005)
-    # dyn = Dynamics(path = 'xml/unitree_g1/scene_mjx.xml', integrator = integrator, dt = 0.001)
-    # dyn = Dynamics(path = 'xml/custom/ball.xml', integrator = integrator)
+    # dyn = Dynamics(path = 'xml/unitree_go2/scene_mjx.xml', integrator = integrator, dt = 0.0005)
+    dyn = Dynamics(path = 'xml/custom/ball.xml', integrator = integrator)
 
     print(f'State dimention: {dyn.state_dim}')
     print(f'Control dimention: {dyn.control_dim}')
@@ -191,79 +189,58 @@ if __name__ == '__main__':
     for jnt_type, jnt_qposadr in zip(dyn.mjx_model.jnt_type, dyn.mjx_model.jnt_qposadr):
         print(mjx.JointType(jnt_type), jnt_qposadr)
 
-    # steps = 1000
-    steps = 3000
+    steps = 1000 #5000
 
     '''for ball'''
-    # ## building goal state
-    # goal_qpos = jnp.array(home.qpos)
-    # goal_qpos = jnp.zeros(dyn.nq)
-    # goal_qpos = goal_qpos.at[0].set(1.2) ## x
-    # goal_qpos = goal_qpos.at[1].set(-1.0) ## y
-    # goal_qpos = goal_qpos.at[2].set(0.1) ## z
-    # goal_qvel = jnp.zeros(dyn.nv)
-    # goal = jnp.concatenate([goal_qpos, goal_qvel])
-
-    # ## building Q R matrices
-    # Q = jnp.zeros((dyn.state_dim, dyn.state_dim))
-    # Q = Q.at[0, 0].set(1.0)
-    # Q = Q.at[1, 1].set(1.0)
-    # Q = Q.at[2, 2].set(1.0)
-    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.001) ## velocity penalty
-    # # R = jnp.eye(dyn.control_dim) * 0.001
-    # # R = jnp.eye(dyn.control_dim) * 0.1
-    # R = jnp.eye(dyn.control_dim) * 1.0
-    # U = jnp.zeros((steps, dyn.control_dim))
-
-    '''for go2'''
     ## building goal state
     goal_qpos = jnp.array(home.qpos)
-    goal_qpos = goal_qpos.at[0].set(1.0) ## x
-    # goal_qpos = goal_qpos.at[1].set(0.5) ## x
+    goal_qpos = jnp.zeros(dyn.nq)
+    goal_qpos = goal_qpos.at[0].set(1.2) ## x
+    goal_qpos = goal_qpos.at[1].set(-0.5) ## y
+    goal_qpos = goal_qpos.at[2].set(0.1) ## z
     goal_qvel = jnp.zeros(dyn.nv)
     goal = jnp.concatenate([goal_qpos, goal_qvel])
+
     ## building Q R matrices
     Q = jnp.zeros((dyn.state_dim, dyn.state_dim))
+    Q = Q.at[0, 0].set(1.0)
+    Q = Q.at[1, 1].set(1.0)
+    Q = Q.at[2, 2].set(1.0)
+    Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0001) ## velocity penalty
+    R = jnp.eye(dyn.control_dim) * 0.001
+    U = jnp.zeros((steps, dyn.control_dim))
 
-    ## original Q weights
-    # Q = Q.at[0:7,0:7].set(jnp.eye(7)) ## main body
-    # Q = Q.at[7:dyn.nq, 7:dyn.nq].set(jnp.eye(dyn.nq - 7) * 0.5) ## all other parts
-    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0001) ## velocity penalty
-    ## original R weights
-    # R = jnp.eye(dyn.control_dim) * 0.0001
-
-    ## new Q weights
-
-    ## main body
-    Q = Q.at[0:7,0:7].set(jnp.eye(7))
-    ## extremities
-    Q = Q.at[7:dyn.nq, 7:dyn.nq].set(jnp.eye(dyn.nq - 7) * 0.5) ## original
-    # Q = Q.at[7:dyn.nq, 7:dyn.nq].set(jnp.eye(dyn.nq - 7) * 0.01)
-    ## velocity
-    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0001)
-    Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.00001) ## original
-    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0000001)
-
-    ## new R weights
-    # R = jnp.eye(dyn.control_dim) * 0.1
-    # R = jnp.eye(dyn.control_dim) * 0.001 ## original
-    R = jnp.eye(dyn.control_dim) * 1.0
-    U = jnp.tile(home.ctrl[None, :], (steps, 1))
-
-    '''panda'''
+    '''for go2'''
+    # goal_location = 2.0
     # ## building goal state
-    # # goal_qpos = jnp.zeros(dyn.nq)
     # goal_qpos = jnp.array(home.qpos)
+    # goal_qpos = goal_qpos.at[0].set(goal_location) ## x
     # goal_qvel = jnp.zeros(dyn.nv)
     # goal = jnp.concatenate([goal_qpos, goal_qvel])
 
-    # ## building Q R matrices
-    # Q = jnp.zeros((dyn.state_dim, dyn.state_dim))
-    # Q = Q.at[:dyn.nq, :dyn.nq].set(jnp.eye(dyn.nq))
-    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * 0.0001) ## velocity penalty
+    # goal = goal.reshape(1, -1).repeat(steps+1, axis = 0)
+    # ## add time varying goal location
+    # # goal = goal.at[:, 0].set(jnp.linspace(0.0, goal_location, steps + 1))
+    # print(goal[:, 0])
 
-    # R = jnp.eye(dyn.control_dim) * 0.1
-    # U = jnp.zeros((steps, dyn.control_dim))
+    # ## new Q weights
+    # distance_penalty = 1.0
+    # velocity_penalty = 0.000001
+    # # control_penalty = 0.01
+    # control_penalty = 0.1
+
+    # ## main body
+    # Q = jnp.zeros((dyn.state_dim, dyn.state_dim))
+    # Q = Q.at[0:7,0:7].set(jnp.eye(7))
+    # Q = Q.at[0, 0].set(distance_penalty)
+    # ## extremities
+    # Q = Q.at[7:dyn.nq, 7:dyn.nq].set(jnp.eye(dyn.nq - 7) * 0.5) ## original
+    # ## velocity
+    # Q = Q.at[dyn.nq:, dyn.nq:].set(jnp.eye(dyn.nv) * velocity_penalty)
+    # ## new R weights
+    # R = jnp.eye(dyn.control_dim) * control_penalty
+    # ## repeating the nominal control sequence
+    # U = jnp.tile(home.ctrl[None, :], (steps, 1))
 
     '''
     run iLQR
@@ -271,14 +248,9 @@ if __name__ == '__main__':
     ilqr = iLQR(dyn, Q, R)
     X = unroll(dyn, xt, U)
 
-    # dyn.render(
-    #     X,
-    #     path = 'left.mp4',
-    #     skip = 20, 
-    #     distance = 2.0, 
-    #     elevation = -20,
-    #     lookat = jnp.array([0.8, 0.0, 0.5])
-    #     )
+    A, B = ilqr.batch_linearize(X[:-1], U)
+    e = (X - goal)
+    k, K = ilqr.backward(e, A, B, U)
 
     alphas = jnp.linspace(1e-4, 1.0, 20)
 
@@ -286,18 +258,15 @@ if __name__ == '__main__':
 
     cost = []
 
-    # iterations = 10
-    iterations = 3
+    iterations = 10
     for i in range(iterations):
 
         A, B = ilqr.batch_linearize(X[:-1], U)
 
         e = (X - goal)
-        # k, K = ilqr.backward(e, A, B, U)
-        U_tilde, k, K = ilqr.backward(e, A, B, U)
-
-        # X_batch, U_batch = batch_forward(X, U, k, K, alphas)
-        X_batch, U_batch = batch_forward(X, U_tilde, k, K, alphas)
+        
+        k, K = ilqr.backward(e, A, B, U)
+        X_batch, U_batch = batch_forward(X, U, k, K, alphas)
 
         e_batch = X_batch - goal
         J_batch = einsum(e_batch, Q, e_batch, 'n t x1, x1 x2, n t x2 -> n') + einsum(U_batch, R, U_batch, 'n t u1, u1 u2, n t u2 -> n')
@@ -307,9 +276,9 @@ if __name__ == '__main__':
         U = U_batch[idx]
         J = J_batch[idx]
         print(i, J, alphas[idx])
-
         cost.append(J)
 
+    ## plotting cost and controls
     fig, ax = plt.subplots(1, 2)
     ax[0].set_ylabel('Trajectory Cost')
     ax[0].set_xlabel('Iterations')
@@ -321,15 +290,11 @@ if __name__ == '__main__':
     for i in range(U.shape[1]):
         ax[1].plot(U[:, i], alpha = 0.2)
 
-    # fig.savefig('ball_cost.png', dpi = 300)
-    fig.savefig('100_imp_left_go_cost.png', dpi = 300)
+    fig.savefig('test.png', dpi = 300)
+    plt.show()
 
-    # dyn.render(X, path = 'ball.mp4', skip = 10, elevation = -90)
-    dyn.render(
-        X,
-        path = '100_imp_left_go.mp4',
-        skip = 20, 
-        distance = 2.0, 
-        elevation = -20,
-        lookat = jnp.array([0.8, 0.0, 0.5])
-        )
+    dyn.render(X, path = 'test.mp4', elevation = -90)
+
+    # name = f'long_static_go_distance={distance_penalty}_velocity={velocity_penalty}_control={control_penalty}_iter={iterations}'
+    # fig.savefig(name + '.png', dpi = 300)
+    # render_go(dyn, X, path = name + '.mp4')
