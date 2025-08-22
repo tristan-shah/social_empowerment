@@ -213,8 +213,7 @@ def compute_multiagent_empowerment(
         U: Array, 
         power: Array, 
         alpha: float,
-        key,
-        observation_noise: float = 1.0):
+        observation_noise: float):
 
     num_agents = len(power)
     horizon = U.shape[0]
@@ -223,8 +222,8 @@ def compute_multiagent_empowerment(
     dm = du * horizon
 
     # S = jnp.zeros((num_agents, dm, dm))
-    S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
     # S_z = jnp.eye(dx) + jnp.diag(jax.random.normal(key, (dx))) * 1e-5
+    S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
 
     X = unroll(dyn, x0, U)
     A, B = jax.vmap(dyn.linearize)(X[:-1], U)
@@ -235,8 +234,8 @@ def compute_multiagent_empowerment(
 
     # hardcoded noise perturbation
     # S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
-    S_z = jnp.eye(2) * observation_noise
     # S_z = jnp.eye(2)
+    S_z = jnp.eye(2) * observation_noise
     
     ## egoistic double pendulum
     F_agent = jnp.stack([
@@ -278,5 +277,5 @@ compute_multiagent_empowerment = jax.jit(compute_multiagent_empowerment, static_
 compute_multiagent_empowerment_grad = jax.jit(
     jax.jacfwd(
         select_output(compute_multiagent_empowerment, 1), 
-        argnums = 1), 
+        argnums = 1),
     static_argnums = 0)

@@ -115,7 +115,7 @@ def plot_iteration_hetamap(heatmap: Array, horizon: int, powers: Array, path: st
     plt.close(fig)
     return
 
-def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: float, steps: int, key):
+def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: float, observation_noise: float, steps: int, key):
     '''
     runs the multi agent empowerment controller where each agent selects an action proportional to the gradient
     of empowerment.
@@ -130,7 +130,7 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: flo
 
         ## obtain control gain
         _, B = dyn.linearize(_xt, U[0])
-        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, power, alpha, key)
+        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, power, alpha, observation_noise)
 
         ## compute action
         ut = jnp.sign(jnp.diag(grad_E @ B)) * power
@@ -152,30 +152,31 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--horizon', type = int, default = 50)
     parser.add_argument('--alpha', type = float, default = 0.01)
+    parser.add_argument('--observation_noise', type = float, default = 1.0)
     args = parser.parse_args()
-
     print(f'GPU devices: {jax.devices()}')
 
     ## Hyperparams
     key = jax.random.key(5)
-    steps = 1500                ## simulation horizon
-    alpha = args.alpha                ## smoothing for synchronous IWF
-    horizon = args.horizon      ## empowerment horizon
-    num_powers = 30             ## resolution of the sweep
+    steps = 1500                            ## simulation horizon
+    alpha = args.alpha                      ## smoothing for synchronous IWF
+    horizon = args.horizon                  ## empowerment horizon
+    observation_noise = args.observation_noise
+    num_powers = 30                         ## resolution of the sweep
     powers = jnp.linspace(0.5, 3.0, num_powers)
     device_batch_size = 50
     num_devices = jax.device_count()
 
     # output_dir = Path(f'sweep_power/horizon={horizon}')
     # output_dir = Path(f'sweep_power/horizon={horizon}_alpha={alpha}_obsnoise=0.0')
-    output_dir = Path(f'results/horizon={horizon}_alpha={alpha}_obsnoise=0.0')
+    output_dir = Path(f'results/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
     ## holding the number of simulation steps constant.
     batch_run_multiagent_empowerment = jax.jit(
         jax.vmap(
-            lambda _dyn, _U, _power, _alpha, _key : run_multiagent_empowerment(_dyn, _U, _power, _alpha, steps, _key),
+            lambda _dyn, _U, _power, _alpha, _key : run_multiagent_empowerment(_dyn, _U, _power, _alpha, observation_noise, steps, _key),
             in_axes = (None, None, 0, None, 0)
         ),
         static_argnums = 0
