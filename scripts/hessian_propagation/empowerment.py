@@ -41,22 +41,24 @@ def compute_empowerment(dyn: Dynamics, x0: Array, U: Array, power: float):
 
 if __name__ == '__main__':
 
-    horizon = 5#400
+    horizon = 400
     trials = 1000
     power = 1.0
     alpha = 1.0
+    # alpha = 0.1
 
-    # dyn = Dynamics(path = 'xml/custom/pendulum.xml')
+    dyn = Dynamics(path = 'xml/custom/pendulum.xml')
     # x0 = jnp.array([1.0, 0.0])
     # x0 = jnp.array([3.1, 0.0])
     # x0 = jnp.array([3.12, 0.0])
     # x0 = jnp.array([3.13, 0.0])
     # x0 = jnp.array([3.14, 0.0])
+    x0 = jnp.array([3.15, 0.0])
 
-    dyn = Dynamics(path = 'xml/custom/double_pendulum.xml')
-    # x0 = jnp.array([jnp.pi+0.00001, -0.001, 0.0, 0.0])
-    x0 = jnp.array([jnp.pi+0.00001, -0.005, 0.0, 0.0])
-    # x0 = jnp.array([jnp.pi+0.1, -0.001, 0.0, 0.0])
+    # dyn = Dynamics(path = 'xml/custom/double_pendulum.xml')
+    # # x0 = jnp.array([jnp.pi+0.00001, -0.001, 0.0, 0.0])
+    # x0 = jnp.array([jnp.pi+0.00001, -0.005, 0.0, 0.0])
+    # # x0 = jnp.array([jnp.pi+0.1, -0.001, 0.0, 0.0])
 
 
     dt = dyn.mjx_model.opt.timestep
@@ -64,7 +66,7 @@ if __name__ == '__main__':
     u_star = jnp.zeros((dyn.control_dim))
 
     hist = []
-    for i in range(1):
+    for i in range(20):
 
         U_bar = jnp.zeros((horizon, dyn.control_dim))
         U_bar = U_bar.at[0].set(u_star)
@@ -109,18 +111,25 @@ if __name__ == '__main__':
             einsum(Huu, sigma, Huu, 'x1 u1 u2, u1 u3, x2 u3 u4 -> u2 x1 x2 u4'),
             'x1 x2, u1 x2 x3 u2 -> u1 x1 x3 u2')
         Vuu = jnp.trace(Vuu, axis1 = 1, axis2 = 2)
-        Vuu = Vuu.clip(max = 1000)
+        # Vuu = Vuu.clip(max = 1000)
 
         ## solve the quadratic for the maximum
-        u_star = jnp.linalg.inv(Vuu) @ (Vuu @ u_star + vu * alpha)
+        # u_star = jnp.linalg.inv(Vuu) @ (Vuu @ u_star + vu * alpha)
+        u_star = u_star + jnp.linalg.inv(Vuu) @ (vu * alpha)
         u_star = jnp.clip(u_star, min = dyn.mjx_model.actuator_ctrlrange[:, 0], max = dyn.mjx_model.actuator_ctrlrange[:, 1])
 
         print(i, e_bar, vu, Vuu, u_star)
         hist.append(e_bar)
 
+
+    
+
     fig, ax = plt.subplots(1, 1)
     ax.plot(hist)
     plt.show()
+
+
+
 
     '''
     plot empowerment as a function of control
@@ -141,8 +150,8 @@ if __name__ == '__main__':
     e = batch_compute_empowerment(dyn, x0, U_batch, power)
 
     fig, ax = plt.subplots(1, 1)
-    ax.set_title(fr'Double Pendulum: $\theta_0={round(x0[0], 3)}$, $\theta_1={round(x0[1], 3)}$, Horizon $={horizon * dt}$ (s)')
-    # ax.set_title(fr'Single Pendulum: $\theta={round(x0[0], 3)}$, Horizon $={horizon * dt}$ (s)')
+    # ax.set_title(fr'Double Pendulum: $\theta_0={round(x0[0], 3)}$, $\theta_1={round(x0[1], 3)}$, Horizon $={horizon * dt}$ (s)')
+    ax.set_title(fr'Single Pendulum: $\theta={round(x0[0], 3)}$, Horizon $={horizon * dt}$ (s)')
     ax.set_xlabel(r'Control $u_0$')
     ax.set_ylabel('Empowerment')
     ax.plot(u0, e, label = 'True')

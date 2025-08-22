@@ -159,15 +159,16 @@ if __name__ == '__main__':
     ## Hyperparams
     key = jax.random.key(5)
     steps = 1500                ## simulation horizon
-    alpha = 0.01                ## smoothing for synchronous IWF
+    alpha = args.alpha                ## smoothing for synchronous IWF
     horizon = args.horizon      ## empowerment horizon
     num_powers = 30             ## resolution of the sweep
     powers = jnp.linspace(0.5, 3.0, num_powers)
     device_batch_size = 50
     num_devices = jax.device_count()
 
-    output_dir = Path(f'sweep_power/horizon={horizon}')
-    output_dir = Path(f'sweep_power/horizon={horizon}_alpha={alpha}_obsnoise=0.0')
+    # output_dir = Path(f'sweep_power/horizon={horizon}')
+    # output_dir = Path(f'sweep_power/horizon={horizon}_alpha={alpha}_obsnoise=0.0')
+    output_dir = Path(f'results/horizon={horizon}_alpha={alpha}_obsnoise=0.0')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 

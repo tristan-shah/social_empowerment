@@ -204,8 +204,8 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
 
-# MAX_ITER = 10
-MAX_ITER = 50
+MAX_ITER = 10
+# MAX_ITER = 50
 
 def compute_multiagent_empowerment(
         dyn: Dynamics, 
@@ -213,7 +213,8 @@ def compute_multiagent_empowerment(
         U: Array, 
         power: Array, 
         alpha: float,
-        key):
+        key,
+        observation_noise: float = 1.0):
 
     num_agents = len(power)
     horizon = U.shape[0]
@@ -234,7 +235,7 @@ def compute_multiagent_empowerment(
 
     # hardcoded noise perturbation
     # S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
-    S_z = jnp.eye(2) * 0.0
+    S_z = jnp.eye(2) * observation_noise
     # S_z = jnp.eye(2)
     
     ## egoistic double pendulum

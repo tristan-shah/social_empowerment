@@ -7,7 +7,6 @@ from soc_emp.empowerment import compute_multiagent_empowerment
 
 if __name__ == '__main__':
 
-
     ## hyperparams
     key = jax.random.key(5)
     alpha = 0.01
