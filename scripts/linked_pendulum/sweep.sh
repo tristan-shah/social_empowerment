@@ -6,11 +6,12 @@
 #SBATCH --ntasks=1               # Number of tasks
 #SBATCH --exclusive              # Exclusive node access
 #SBATCH --time=24:00:00          # Max runtime
-#SBATCH --output=slurm-%j.out    # Output file
-#SBATCH --error=slurm-%j.err     # Error file
+# SBATCH --output=slurm-%j.out    # Output file
+# SBATCH --error=slurm-%j.err     # Error file
 
 source ~/miniforge3/etc/profile.d/conda.sh 
 conda activate soc_emp
 
 # Run your Python script
-python scripts/linked_pendulum/sweep.py --horizon 50 --alpha 0.01 --observation_noise 0.00001
+# python scripts/linked_pendulum/sweep.py --horizon 50 --alpha 0.01 --observation_noise 0.00001
+python scripts/linked_pendulum/sweep.py --horizon 50 --alpha 0.5 --observation_noise 0.0001

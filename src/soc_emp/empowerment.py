@@ -204,8 +204,8 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
 
-MAX_ITER = 10
-# MAX_ITER = 50
+# MAX_ITER = 10
+MAX_ITER = 50
 
 def compute_multiagent_empowerment(
         dyn: Dynamics, 
