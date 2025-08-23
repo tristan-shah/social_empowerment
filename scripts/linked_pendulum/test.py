@@ -41,7 +41,7 @@ if __name__ == '__main__':
     for t in range(steps):
         ## obtain control gain
         _, B = dyn.linearize(xt, U[0])
-        grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, key, observation_noise)
+        grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, observation_noise)
         ## compute action
         ut = jnp.sign(jnp.diag(grad_E @ B)) * power
         ## pick a random direction with max power if the action is zero
@@ -49,7 +49,7 @@ if __name__ == '__main__':
         random_direction = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(dyn.control_dim,))
         ut = ut + (ut == 0) * power * random_direction
 
-        i, e = compute_multiagent_empowerment(dyn, xt, U, power, alpha, key, observation_noise)
+        i, e = compute_multiagent_empowerment(dyn, xt, U, power, alpha, observation_noise)
 
         xt = dyn.step(xt, ut)
         X = X.at[t+1].set(xt)
