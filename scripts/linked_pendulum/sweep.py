@@ -234,7 +234,8 @@ if __name__ == '__main__':
         ## pads the pairs and keys if the actual batch size is less than the expected batch size
         if actual_effective_batch_size < effective_batch_size:
             pad_size = effective_batch_size - actual_effective_batch_size
-            batch_pairs = jnp.vstack([batch_pairs, jnp.zeros((pad_size, 2))])
+            # batch_pairs = jnp.vstack([batch_pairs, jnp.zeros((pad_size, 2))])
+            batch_pairs = jnp.vstack([batch_pairs, jnp.ones((pad_size, 2))])
             batch_keys = jnp.concatenate([batch_keys, jax.random.split(key, pad_size)])
 
         ## reshape so that the leading index is num_devices so pmap broadcasts correctly

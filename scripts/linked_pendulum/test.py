@@ -14,8 +14,8 @@ if __name__ == '__main__':
     key = jax.random.key(4)
     steps = 1500  ## simulation horizon
     alpha = 0.01
-    horizon = 100
-    power = jnp.array([1.58, 1.65])
+    horizon = 50
+    power = jnp.array([1.0, 2.0])
     observation_noise = 1.0
 
     # load dynamics
