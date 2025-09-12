@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     ## simulation horizon
     horizon = 50
-    max_power = 0.75 #1.0
+    max_power = 1.0
     steps = 1500
 
     ## load in xml
@@ -51,11 +51,17 @@ if __name__ == '__main__':
         ## log state
         X = X.at[t+1].set(xt)
 
+
+    times = jnp.linspace(0.0, X.shape[0] * dt, X.shape[0]-1)
+
     ## plotting the empowerment over time
     fig, ax = plt.subplots(1, 1)
-    ax.set_xlabel('Timestep')
-    ax.set_ylabel('Empowerment')
-    ax.plot(empowerment_hist)
+    fig.suptitle('Single Pendulum Empowerment', fontsize = 14)
+    ax.set_xlim(0.0, 15.0)
+    ax.tick_params(axis = 'both', labelsize = 12)
+    ax.set_xlabel('Time (s)', fontsize = 14)
+    ax.set_ylabel('Empowerment (Nats)',  fontsize = 14)
+    ax.plot(times, empowerment_hist)
     fig.tight_layout()
     fig.savefig(f'pendulum_empowerment.png', dpi = 300)
 

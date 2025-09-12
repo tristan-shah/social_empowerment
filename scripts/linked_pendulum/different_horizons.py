@@ -109,7 +109,8 @@ if __name__ == '__main__':
     steps = 1500
 
     ## how much the agent can push at each timestep
-    power_density = jnp.array([1.0, 1.1])
+    # power_density = jnp.array([1.0, 1.1])
+    power_density = jnp.array([1.5, 1.3])
     ## horizon length for each agent
     horizon = (100, 100)
     ## total power allocation for IWF

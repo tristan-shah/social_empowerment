@@ -11,6 +11,7 @@ jax.config.update('jax_traceback_filtering', 'off')
 
 from jax import numpy as jnp
 from jax import Array
+from flax import struct 
 import imageio
 
 from soc_emp.utils import split_state, get_state

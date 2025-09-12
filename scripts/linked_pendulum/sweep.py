@@ -148,6 +148,9 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: flo
     _, X = jax.lax.scan(_step_linked_pendulums, (xt, key), length = steps)
     return jnp.concatenate([xt[None, :], X])
 
+## create a function to evaluate the outcome of a batch of linked_pendulum runs
+batch_get_linked_pendulum_outcome = jax.vmap(get_linked_pendulum_outcome)
+
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--horizon', type = int, default = 50)
@@ -188,9 +191,6 @@ if __name__ == '__main__':
         in_axes = (None, None, 0, None, 0),
         static_broadcasted_argnums = 0
     )
-
-    ## create a function to evaluate the outcome of a batch of linked_pendulum runs
-    batch_get_linked_pendulum_outcome = jax.vmap(get_linked_pendulum_outcome)
 
     ## Load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'

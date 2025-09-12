@@ -1,6 +1,7 @@
 import jax
 from jax import Array
 from jax import numpy as jnp
+import numpy as np
 import matplotlib.pyplot as plt
 
 from soc_emp import Dynamics
@@ -13,9 +14,11 @@ if __name__ == '__main__':
     ## hyperparams
     key = jax.random.key(4)
     steps = 1500  ## simulation horizon
-    alpha = 0.01
+    alpha = 0.50
+    # alpha = 0.01
     horizon = 50
-    power = jnp.array([1.0, 2.0])
+    # power = jnp.array([2.22, 2.22])
+    power = jnp.array([1.4, 1.19])
     observation_noise = 1.0
 
     # load dynamics
@@ -49,7 +52,7 @@ if __name__ == '__main__':
         random_direction = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(dyn.control_dim,))
         ut = ut + (ut == 0) * power * random_direction
 
-        i, e = compute_multiagent_empowerment(dyn, xt, U, power, alpha, observation_noise)
+        i, e, _ = compute_multiagent_empowerment(dyn, xt, U, power, alpha, observation_noise)
 
         xt = dyn.step(xt, ut)
         X = X.at[t+1].set(xt)
@@ -62,8 +65,11 @@ if __name__ == '__main__':
 
     dyn.render(X, path = run_name + '.mp4', skip = 3)
 
-    fig, ax = plt.subplots(3, 1)
-    fig.suptitle(f'Horizon = {horizon * dt} (seconds)')
+
+    fig, ax = plt.subplots(2, 1)
+    # fig.suptitle(f'Horizon = {horizon * dt} (seconds)')
+    fig.suptitle('Failure Outcome', fontsize = 14)
+    # fig.suptitle('Domination Outcome', fontsize = 14)
 
     ## plot empowerment
     ax[0].plot(empowerment[:, 0], label = 'Left Agent', color = 'blue')
@@ -71,6 +77,8 @@ if __name__ == '__main__':
     ax[0].set_ylabel('Empowerment', fontsize = 14)
     ax[0].tick_params(axis = 'both', labelsize = 12)
     ax[0].legend(fontsize = 12)
+    ax[0].set_xticks([])
+    ax[0].set_xlim(0, 1500)
 
     ## plot angle from top
     agent_0_angle = jnp.abs(smooth_angle_wrap(X[:, 0] - jnp.pi))
@@ -79,12 +87,15 @@ if __name__ == '__main__':
     ax[1].plot(agent_1_angle, color = 'orange')
     ax[1].set_ylabel('Angle From Top', fontsize = 14)
     ax[1].tick_params(axis = 'both', labelsize = 12)
+    ax[1].set_xlim(0, 1500)
+    ax[1].set_xlabel('Interaction Time (s)', fontsize = 14)
 
-    ## plot IWF iterations
-    ax[2].plot(iterations)
-    ax[2].set_xlabel('Timestep', fontsize = 14)
-    ax[2].set_ylabel('Iterations', fontsize = 14)
-    ax[2].tick_params(axis = 'both', labelsize = 12)
+    n_ticks = 5
+    positions = np.linspace(0, empowerment.shape[0] - 1, n_ticks)
+    labels = np.linspace(0.0, 15.0, n_ticks)
+
+    ax[1].set_xticks(positions)
+    ax[1].set_xticklabels(labels, rotation = 'horizontal')
 
     fig.tight_layout()
     fig.savefig(run_name + '.png', dpi = 300)

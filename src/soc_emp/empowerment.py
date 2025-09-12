@@ -6,7 +6,7 @@ from einops import einsum, rearrange
 from soc_emp import Dynamics
 from soc_emp.utils import select_output
 
-tol = 1e-6
+TOL = 1e-6
 
 @jax.jit
 def compute_power(water_line: Array, eigs: Array):
@@ -54,7 +54,7 @@ def waterfilling_solver(noise_levels: Array, total_power: float):
     '''
     Code courtesy of Noam Smilovich. 
     '''
-    clipped_noise = jnp.maximum(noise_levels, tol)
+    clipped_noise = jnp.maximum(noise_levels, TOL)
     inverse = 1.0 / clipped_noise
 
     inverse_sorted = jnp.sort(inverse)
@@ -90,7 +90,7 @@ def waterfilling_implicit(noise_levels: Array, total_power: float):
     '''
     Code courtesy of Noam Smilovich. 
     '''
-    safe_noise = jnp.maximum(noise_levels, tol)
+    safe_noise = jnp.maximum(noise_levels, TOL)
 
     def f(mu):
         return jnp.sum(compute_power(mu, safe_noise)) - total_power
@@ -204,8 +204,36 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
 
-# MAX_ITER = 10
 MAX_ITER = 50
+
+@jax.jit
+def iterative_waterfilling(H_agent: Array, H_noise: Array, S: Array, S_z: Array, power: Array, alpha: float):
+    '''
+    Calculates channel capacity of a multiuser channel. Stops when the channel capacity reaches a fixed point.
+    '''
+
+    num_agents = H_agent.shape[0]
+
+    def cond_fun(state):
+        i, S, e, e_prev = state
+        return jnp.logical_and(
+            jnp.any(jnp.abs(e - e_prev) > 1e-5),
+            i < MAX_ITER
+        )
+
+    def body_fun(state):
+        i, S, e, e_prev = state
+        e_prev = e
+        e, S_ = waterfilling_operator(H_agent, H_noise, S, S_z, power)
+        S = alpha * S + (1 - alpha) * S_
+        return (i + 1, S, e, e_prev)
+
+    e_prev = jnp.ones(num_agents) * jnp.inf
+    e = jnp.zeros(num_agents)
+
+    state = (0, S, e, e_prev)
+    i, S, e, e_prev = jax.lax.while_loop(cond_fun, body_fun, state)
+    return i, e, S
 
 def compute_multiagent_empowerment(
         dyn: Dynamics, 
@@ -217,13 +245,12 @@ def compute_multiagent_empowerment(
 
     num_agents = len(power)
     horizon = U.shape[0]
-    # dx = dyn.state_dim
     du = dyn.control_dim // num_agents
     dm = du * horizon
 
-    # S = jnp.zeros((num_agents, dm, dm))
-    # S_z = jnp.eye(dx) + jnp.diag(jax.random.normal(key, (dx))) * 1e-5
     S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
+    # hardcoded noise perturbation
+    S_z = jnp.eye(2) * observation_noise
 
     X = unroll(dyn, x0, U)
     A, B = jax.vmap(dyn.linearize)(X[:-1], U)
@@ -232,11 +259,6 @@ def compute_multiagent_empowerment(
 
     F_agent, F_noise = split_channel_matrix(F, num_agents)
 
-    # hardcoded noise perturbation
-    # S_z = jnp.eye(2) + jnp.diag(jax.random.normal(key, (2))) * 1e-5
-    # S_z = jnp.eye(2)
-    S_z = jnp.eye(2) * observation_noise
-    
     ## egoistic double pendulum
     F_agent = jnp.stack([
         F_agent[0, [0, 2], :],
@@ -248,30 +270,8 @@ def compute_multiagent_empowerment(
         F_noise[1, :, [1, 3], :]
     ], axis = 0)
 
-    '''
-    Explicit iteration
-    '''
-    max_iter = MAX_ITER
-
-    def cond_fun(state):
-        i, S, e, e_prev = state
-        return jnp.logical_and(
-            jnp.any(jnp.abs(e - e_prev) > 1e-5),
-            i < max_iter
-        )
-
-    def body_fun(state):
-        i, S, e, e_prev = state
-        e_prev = e
-        e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-        S = alpha * S + (1 - alpha) * S_
-        return (i + 1, S, e, e_prev)
-
-    e_prev = jnp.ones(num_agents) * jnp.inf
-    e = jnp.zeros(num_agents)
-    i, S, e, e_prev = jax.lax.while_loop(cond_fun, body_fun, (0, S, e, e_prev))
-
-    return i, e
+    i, e, S = iterative_waterfilling(F_agent, F_noise, S, S_z, power, alpha)
+    return i, e, S
 
 compute_multiagent_empowerment = jax.jit(compute_multiagent_empowerment, static_argnums = 0)
 compute_multiagent_empowerment_grad = jax.jit(
