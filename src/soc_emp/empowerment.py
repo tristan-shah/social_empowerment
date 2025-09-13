@@ -233,6 +233,7 @@ def iterative_waterfilling(H_agent: Array, H_noise: Array, S: Array, S_z: Array,
 
     state = (0, S, e, e_prev)
     i, S, e, e_prev = jax.lax.while_loop(cond_fun, body_fun, state)
+
     return i, e, S
 
 def compute_multiagent_empowerment(
@@ -259,15 +260,23 @@ def compute_multiagent_empowerment(
 
     F_agent, F_noise = split_channel_matrix(F, num_agents)
 
-    ## egoistic double pendulum
+    '''
+    egoistic double pendulum. Each agent only cares about its own state (angle, angular velocity).
+    '''
     F_agent = jnp.stack([
         F_agent[0, [0, 2], :],
         F_agent[1, [1, 3], :]
         ], axis = 0)
+    
+    ## "direct indexing" produces some unintuitive slices when indexes are seperated by ":"
+    # F_noise = jnp.stack([
+    #     F_noise[0, :, [0, 2], :],
+    #     F_noise[1, :, [1, 3], :]
+    # ], axis = 0)
 
     F_noise = jnp.stack([
-        F_noise[0, :, [0, 2], :],
-        F_noise[1, :, [1, 3], :]
+        F_noise[0][:, [0, 2], :],
+        F_noise[1][:, [1, 3], :]
     ], axis = 0)
 
     i, e, S = iterative_waterfilling(F_agent, F_noise, S, S_z, power, alpha)

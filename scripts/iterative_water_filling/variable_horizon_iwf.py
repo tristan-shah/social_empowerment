@@ -3,7 +3,7 @@ from jax import Array
 from jax import numpy as jnp
 import matplotlib.pyplot as plt
 
-from soc_emp.empowerment import waterfilling_operator, batch_diag, iterative_waterfilling
+from soc_emp.empowerment import batch_diag, iterative_waterfilling
 
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
