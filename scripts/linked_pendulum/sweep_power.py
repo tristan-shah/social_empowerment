@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
     # output_dir = Path(f'sweep_power/horizon={horizon}')
     # output_dir = Path(f'sweep_power/horizon={horizon}_alpha={alpha}_obsnoise=0.0')
-    output_dir = Path(f'results/chain_index/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
+    output_dir = Path(f'results/tol=1e-4/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
