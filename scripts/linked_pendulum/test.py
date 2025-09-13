@@ -14,12 +14,12 @@ if __name__ == '__main__':
     ## hyperparams
     key = jax.random.key(4)
     steps = 1500  ## simulation horizon
-    alpha = 0.50
-    # alpha = 0.01
-    horizon = 50
-    # power = jnp.array([2.22, 2.22])
-    power = jnp.array([1.4, 1.19])
-    observation_noise = 1.0
+    alpha = 0.01 #0.50
+    horizon = 100
+
+    # power = jnp.array([1.53, 0.84])
+    power = jnp.array([2.22, 1.53])
+    observation_noise = 0.1 #1.0
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -66,9 +66,9 @@ if __name__ == '__main__':
     dyn.render(X, path = run_name + '.mp4', skip = 3)
 
 
-    fig, ax = plt.subplots(2, 1)
+    fig, ax = plt.subplots(3, 1)
     # fig.suptitle(f'Horizon = {horizon * dt} (seconds)')
-    fig.suptitle('Failure Outcome', fontsize = 14)
+    # fig.suptitle('Failure Outcome', fontsize = 14)
     # fig.suptitle('Domination Outcome', fontsize = 14)
 
     ## plot empowerment
@@ -96,6 +96,8 @@ if __name__ == '__main__':
 
     ax[1].set_xticks(positions)
     ax[1].set_xticklabels(labels, rotation = 'horizontal')
+
+    ax[2].plot(iterations)
 
     fig.tight_layout()
     fig.savefig(run_name + '.png', dpi = 300)

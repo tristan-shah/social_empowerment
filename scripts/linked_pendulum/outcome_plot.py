@@ -2,7 +2,7 @@ from pathlib import Path
 from jax import numpy as jnp
 
 from soc_emp import Dynamics
-from sweep import batch_get_linked_pendulum_outcome, plot_outcome_hetamap
+from scripts.linked_pendulum.sweep_power import batch_get_linked_pendulum_outcome, plot_outcome_hetamap
 
 if __name__ == '__main__':
     # load dynamics

@@ -204,7 +204,7 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
 
-MAX_ITER = 50
+MAX_ITER = 20
 
 @jax.jit
 def iterative_waterfilling(H_agent: Array, H_noise: Array, S: Array, S_z: Array, power: Array, alpha: float):
@@ -217,6 +217,7 @@ def iterative_waterfilling(H_agent: Array, H_noise: Array, S: Array, S_z: Array,
     def cond_fun(state):
         i, S, e, e_prev = state
         return jnp.logical_and(
+            # jnp.any(jnp.abs(e - e_prev) > 1e-4),
             jnp.any(jnp.abs(e - e_prev) > 1e-5),
             i < MAX_ITER
         )
@@ -274,6 +275,7 @@ def compute_multiagent_empowerment(
     #     F_noise[1, :, [1, 3], :]
     # ], axis = 0)
 
+    ## chained indexing allows to select the correct submatrices
     F_noise = jnp.stack([
         F_noise[0][:, [0, 2], :],
         F_noise[1][:, [1, 3], :]
