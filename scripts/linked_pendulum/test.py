@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     # power = jnp.array([1.53, 0.84])
     power = jnp.array([2.22, 1.53])
-    observation_noise = 0.1 #1.0
+    observation_noise = 0.01 #1.0
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
