@@ -202,7 +202,7 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
 
-MAX_ITER = 2 #10
+MAX_ITER = 10
 
 @jax.jit
 def iterative_waterfilling(H_agent: Array, H_noise: Array, S: Array, S_z: Array, power: Array, alpha: float):
@@ -215,8 +215,8 @@ def iterative_waterfilling(H_agent: Array, H_noise: Array, S: Array, S_z: Array,
     def cond_fun(state):
         i, S, e, e_prev = state
         return jnp.logical_and(
-            jnp.any(jnp.abs(e - e_prev) > 1e-3),
-            # jnp.any(jnp.abs(e - e_prev) > 1e-5),
+            # jnp.any(jnp.abs(e - e_prev) > 1e-3),
+            jnp.any(jnp.abs(e - e_prev) > 1e-5),
             i < MAX_ITER
         )
 
@@ -288,3 +288,21 @@ compute_multiagent_empowerment_grad = jax.jit(
         select_output(compute_multiagent_empowerment, 1), 
         argnums = 1),
     static_argnums = 0)
+
+@jax.jit
+def compute_multiagent_control(empowerment_grad: Array, control_gain: Array, power: Array, key):
+    '''
+    computes an action proportional to the gradient of empowerment. 
+    handles edge cases when the gradient is zero or nan.
+    '''
+    
+    ut = jnp.sign(jnp.diag(empowerment_grad @ control_gain)) * power
+        
+    ## pick a random direction with max power if the action is zero
+    random_direction = jax.random.choice(key, jnp.array([-1, 1]), shape = ut.shape)
+
+    ## check if any component of the control is zero and replace it with a random direction
+    new_ut = ut + (ut == 0) * power * random_direction
+    fallback_ut = power * random_direction
+    nan_detected = jnp.any(jnp.isnan(empowerment_grad))
+    return jnp.where(nan_detected, fallback_ut, new_ut)

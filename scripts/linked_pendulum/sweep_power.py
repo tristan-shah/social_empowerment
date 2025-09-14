@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 
 from soc_emp import Dynamics
-from soc_emp.empowerment import compute_multiagent_empowerment_grad
+from soc_emp.empowerment import compute_multiagent_empowerment_grad, compute_multiagent_control
 from soc_emp.utils import smooth_angle_wrap
 
 '''
@@ -132,24 +132,25 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: flo
         _, B = dyn.linearize(_xt, U[0])
         grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, power, alpha, observation_noise)
 
-        def _check_for_nan(grad_E, power):
-            if jnp.any(jnp.isnan(grad_E)):
-                # Print both grad_E and power so you know the conditions
-                print('❌ NaN detected in grad_E!')
-                print('grad_E:', grad_E)
-                print('power:', power)
-                raise ValueError('grad_E contains NaN!')
+        # def _check_for_nan(grad_E, power):
+        #     if jnp.any(jnp.isnan(grad_E)):
+        #         # Print both grad_E and power so you know the conditions
+        #         print('❌ NaN detected in grad_E!')
+        #         print('grad_E:', grad_E)
+        #         print('power:', power)
+        #         raise ValueError('grad_E contains NaN!')
 
-        # inside your jitted function:
-        jax.debug.callback(_check_for_nan, grad_E, power)
+        # # inside your jitted function:
+        # jax.debug.callback(_check_for_nan, grad_E, power)
 
-        ## compute action
-        ut = jnp.sign(jnp.diag(grad_E @ B)) * power
+        # ## compute action
+        # ut = jnp.sign(jnp.diag(grad_E @ B)) * power
 
-        ## pick a random direction with max power if the action is zero
+        # ## pick a random direction with max power if the action is zero
         sub_key, _key = jax.random.split(_key)
-        random_direction = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(ut.shape[0],))
-        ut = ut + (ut == 0) * power * random_direction
+        # random_direction = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(ut.shape[0],))
+        # ut = ut + (ut == 0) * power * random_direction
+        ut = compute_multiagent_control(grad_E, B, power, sub_key)
 
         ## propagate dynamics
         _xt = dyn.step(_xt, ut)

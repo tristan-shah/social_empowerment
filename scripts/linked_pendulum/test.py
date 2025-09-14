@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from soc_emp import Dynamics
-from soc_emp.empowerment import compute_multiagent_empowerment, compute_multiagent_empowerment_grad
+from soc_emp.empowerment import compute_multiagent_empowerment, compute_multiagent_empowerment_grad, compute_multiagent_control
 from soc_emp.utils import smooth_angle_wrap
 
 if __name__ == '__main__':
@@ -14,12 +14,12 @@ if __name__ == '__main__':
     ## hyperparams
     key = jax.random.key(4)
     steps = 1500  ## simulation horizon
-    alpha = 0.01 #0.50
+    alpha = 0.01
     horizon = 100
-
-    # power = jnp.array([2.22, 1.53])
-    power = jnp.array([2.9137931,  0.93103448])
     observation_noise = 1.0
+
+    # power = jnp.array([2.31034483, 2.31034483])
+    power = jnp.array([1.5, 1.3])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -32,8 +32,6 @@ if __name__ == '__main__':
     U = jnp.zeros((horizon, dyn.control_dim))
     
     xt = dyn.init_state()
-    # xt = xt.at[0].set(3.1)
-    # xt = xt.at[1].set(3.5)
 
     # '''
     # START: plot iwf
@@ -89,6 +87,12 @@ if __name__ == '__main__':
     # END: plot actual iwf
     # '''
 
+    # delta = jax.random.normal(key, power.shape) * 0.01
+    # print(delta)
+    # grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, observation_noise)
+    # print(grad_E)
+    # grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power + delta, alpha, observation_noise)
+    # print(grad_E)
 
     X = jnp.zeros((steps+1, dyn.state_dim))
     X = X.at[0].set(xt)
@@ -100,12 +104,9 @@ if __name__ == '__main__':
         ## obtain control gain
         _, B = dyn.linearize(xt, U[0])
         grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, observation_noise)
-        ## compute action
-        ut = jnp.sign(jnp.diag(grad_E @ B)) * power
-        ## pick a random direction with max power if the action is zero
-        sub_key, key = jax.random.split(key)
-        random_direction = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(dyn.control_dim,))
-        ut = ut + (ut == 0) * power * random_direction
+
+        key, sub_key = jax.random.split(key)
+        ut = compute_multiagent_control(grad_E, B, power, key)
 
         i, e, _ = compute_multiagent_empowerment(dyn, xt, U, power, alpha, observation_noise)
 
@@ -125,7 +126,6 @@ if __name__ == '__main__':
     # fig.suptitle(f'Horizon = {horizon * dt} (seconds)')
     # fig.suptitle('Failure Outcome', fontsize = 14)
     # fig.suptitle('Domination Outcome', fontsize = 14)
-
     ## plot empowerment
     ax[0].plot(empowerment[:, 0], label = 'Left Agent', color = 'blue')
     ax[0].plot(empowerment[:, 1], label = 'Right Agent', color = 'orange')
