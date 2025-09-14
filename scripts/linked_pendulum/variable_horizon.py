@@ -8,31 +8,24 @@ from soc_emp import Dynamics
 from soc_emp.empowerment import unroll, compute_F_from_A_B, split_channel_matrix, batch_diag, iterative_waterfilling, select_output
 from soc_emp.utils import smooth_angle_wrap
 
-def pad_to(arr: Array, target_len: int, axis: int = -1):
-    pad_shape = list(arr.shape)
-    pad_shape[axis] = target_len
-    out = jnp.zeros(pad_shape, dtype=arr.dtype)
-    slices = [slice(None)] * arr.ndim
-    slices[axis] = slice(0, arr.shape[axis])
-    return out.at[tuple(slices)].set(arr)
-
-# def build_linked_pendulum_channel_matrix(A: Array, B: Array, horizon: tuple[int, int]):
+@jax.jit
 def build_linked_pendulum_channel_matrix(A: Array, B: Array, horizon: Array):
+    T = A.shape[0]
+    ar = jnp.arange(T)
+    eye_tiled = jnp.tile(jnp.eye(4)[None, :, :], (T, 1, 1))
 
-    ## how much to pad
-    pad_0 = A.shape[0] - horizon[0]
-    pad_1 = A.shape[0] - horizon[1]
+    mask_0 = ar < horizon[0]
+    A_0 = jnp.where(mask_0[:, None, None], A, eye_tiled)
+    B_0 = jnp.where(mask_0[:, None, None], B, 0.0)
 
-    ## compute the sensitivity of the final state in the horizon to each action
-    F_0 = compute_F_from_A_B(
-        jax.lax.dynamic_slice_in_dim(A, 0, horizon[0]),
-        jax.lax.dynamic_slice_in_dim(B, 0, horizon[0]))
+    mask_1 = ar < horizon[1]
+    A_1 = jnp.where(mask_1[:, None, None], A, eye_tiled)
+    B_1 = jnp.where(mask_1[:, None, None], B, 0.0)
+
+    F_0 = compute_F_from_A_B(A_0, B_0)
+    F_1 = compute_F_from_A_B(A_1, B_1)
     
-    F_1 = compute_F_from_A_B(
-        jax.lax.dynamic_slice_in_dim(A, 0, horizon[1]),
-        jax.lax.dynamic_slice_in_dim(B, 0, horizon[1]))
-    
-    ## swap the indices so the state dimention is first
+    ## swap the indices so the state dimension is first
     F_0 = jnp.permute_dims(F_0, (1, 0, 2)) ## (state x horizon[0] x control)
     F_1 = jnp.permute_dims(F_1, (1, 0, 2)) ## (state x horizon[0] x control)
 
@@ -40,35 +33,18 @@ def build_linked_pendulum_channel_matrix(A: Array, B: Array, horizon: Array):
     F_0_agent, F_0_noise = split_channel_matrix(F_0, 2)
     F_1_agent, F_1_noise = split_channel_matrix(F_1, 2)
 
-    # ## sensitivity of agent i's action on its own state
-    # F_agent = jnp.stack([
-    #     jnp.pad(F_0_agent[0][[0, 2], :], ((0, 0), (0, pad_0))),
-    #     jnp.pad(F_1_agent[1][[1, 3], :], ((0, 0), (0, pad_1)))
-    # ])
-
-    # F_noise = jnp.stack([
-    #     jnp.pad(F_0_noise[0][:, [0, 2], :], ((0, 0), (0, 0), (0, pad_0))),
-    #     jnp.pad(F_1_noise[1][:, [1, 3], :], ((0, 0), (0, 0), (0, pad_1)))
-    # ])
-
-    max_horizon = A.shape[0]  # compile-time constant
-    
     ## sensitivity of agent i's action on its own state
     F_agent = jnp.stack([
-        pad_to(F_0_agent[0][[0, 2], :], max_horizon),
-        pad_to(F_1_agent[1][[1, 3], :], max_horizon)
+        F_0_agent[0][[0, 2], :],
+        F_1_agent[1][[1, 3], :]
     ])
 
     F_noise = jnp.stack([
-        jnp.pad(F_0_noise[0][:, [0, 2], :], max_horizon),
-        jnp.pad(F_1_noise[1][:, [1, 3], :], max_horizon)
+        F_0_noise[0][:, [0, 2], :],
+        F_1_noise[1][:, [1, 3], :]
     ])
 
     return F_agent, F_noise
-
-# build_linked_pendulum_channel_matrix = jax.jit(build_linked_pendulum_channel_matrix, static_argnums = 2)
-# build_linked_pendulum_channel_matrix = jax.jit(build_linked_pendulum_channel_matrix)
-
 
 def compute_multiagent_empowerment(
         dyn: Dynamics, 
@@ -116,8 +92,7 @@ if __name__ == '__main__':
     key = jax.random.key(4)
     steps = 1500  ## interaction horizon
     max_horizon = 100
-    horizon = (100, 50)
-    assert max(horizon) <= max_horizon
+    horizon = jnp.array([100, 100])
     power = jnp.array([2.0, 2.0])
     alpha = 0.50
     observation_noise = 1.0
@@ -131,34 +106,12 @@ if __name__ == '__main__':
     
     xt = dyn.init_state()
     # xt = xt.at[0].set(3.1)
+    xt = xt.at[1].set(-3.1)
     X = jnp.zeros((steps+1, dyn.state_dim))
     X = X.at[0].set(xt)
 
-    # horizon = jnp.array([horizon[0], horizon[1]])
-    print(horizon)
-    # grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, horizon, power, alpha, observation_noise)
-    # print(grad_E)
-
-    X = unroll(dyn, xt, U)
-    A, B = jax.vmap(dyn.linearize)(X[:-1], U)
-
-    print(A.shape, B.shape)
-    # F_agent, F_noise = build_linked_pendulum_channel_matrix(A, B, horizon)
-    # print(F_agent.shape)
-    
-    A = jax.random.normal(key, (100, 4, 4))
-    B = jax.random.normal(key, (100, 4, 2))
-    build_linked_pendulum_channel_matrix(A, B, horizon)
-
-
-
-
-
-
-
-
-
-
+    grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, horizon, power, alpha, observation_noise)
+    print(grad_E)
 
     # iterations = jnp.zeros(steps)
     # empowerment = jnp.zeros((steps, 2))

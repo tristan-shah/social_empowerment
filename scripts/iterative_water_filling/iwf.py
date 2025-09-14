@@ -12,16 +12,20 @@ from soc_emp.empowerment import split_channel_matrix, waterfilling_operator, bat
 if __name__ == '__main__':
     key = jax.random.PRNGKey(41)
 
-    receive_dim = 2
-    num_agents = 50
-    horizon = 2
-    agent_transmit_dim = 1
+    receive_dim = 5
+    num_agents = 10
+    horizon = 20
+    agent_transmit_dim = 5
     dm = horizon * agent_transmit_dim
 
     power = jnp.ones(num_agents)
-    iterations = 5
-    alpha = 0.3
-    assert 0.0 <= alpha < 1.0
+    iterations = 50
+    alpha = 0.6
+    # assert 0.0 <= alpha < 1.0
+
+    alpha_start = 1.0
+    alpha_end = 0.1
+    decay = 0.9
 
     ## construct a random channel matrix
     H = jax.random.normal(key, (receive_dim, horizon, num_agents * agent_transmit_dim))
@@ -35,31 +39,24 @@ if __name__ == '__main__':
     the size of the covariance matrix will be determined by horizon and the size of its message.
     '''
     S = batch_diag(jnp.ones((num_agents, dm)))
-    S_z = jnp.eye(receive_dim) * 10.0
+    S_z = jnp.eye(receive_dim) * 1.0
 
     hist = jnp.zeros((iterations, num_agents))
 
+    e_prev = jnp.ones(num_agents) * jnp.inf
+
     for i in range(iterations):
+        # alpha = jnp.maximum(alpha_end, alpha_start - (alpha_start - alpha_end) * (i / iterations) * decay)
+
         e, S_ = waterfilling_operator(H_agent, H_noise, S, S_z, power)
         ## simultanious iterative waterfilling update
-        S = alpha * S + (1 - alpha) * S_
+        S = (1-alpha) * S + alpha * S_
         hist = hist.at[i].set(e)
-        print(e)
 
-        fig, ax = plt.subplots(1, 1)
-        ax.set_xlim(-1.0, 1.0)
-        ax.set_ylim(-1.0, 1.0)
-
-        for agent in range(num_agents):
-            ax.arrow(0.0, 0.0, S[agent][0, 0], S[agent][1, 0])
-            ax.arrow(0.0, 0.0, S[agent][0, 1], S[agent][1, 1])
-
-        # ax.arrow(0.0, 0.0, S[0][0, 0], S[0][1, 0], color = 'blue')
-        # ax.arrow(0.0, 0.0, S[0][0, 1], S[0][1, 1], color = 'blue')
-
-        # ax.arrow(0.0, 0.0, S[1][0, 0], S[1][1, 0], color = 'red')
-        # ax.arrow(0.0, 0.0, S[1][0, 1], S[1][1, 1], color = 'red')
-        plt.show()
+        delta = e - e_prev
+        rel_change = delta/e_prev
+        print(alpha)
+        e_prev = e
 
     fig, ax = plt.subplots(1, 1)
     ax.set_xlabel('Iterations')

@@ -17,9 +17,8 @@ if __name__ == '__main__':
     alpha = 0.01 #0.50
     horizon = 100
 
-    # power = jnp.array([1.53, 0.84])
     power = jnp.array([2.22, 1.53])
-    observation_noise = 0.01 #1.0
+    observation_noise = 0.001 #1.0
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -32,8 +31,63 @@ if __name__ == '__main__':
     U = jnp.zeros((horizon, dyn.control_dim))
     
     xt = dyn.init_state()
-    xt = xt.at[0].set(0.0)
-    xt = xt.at[1].set(0.0)
+    # xt = xt.at[0].set(3.1)
+    # xt = xt.at[1].set(3.5)
+
+    # '''
+    # START: plot iwf
+    # '''
+    # from soc_emp.empowerment import batch_diag, unroll, compute_F_from_A_B, split_channel_matrix, waterfilling_operator
+    # num_agents = len(power)
+    # horizon = U.shape[0]
+    # du = dyn.control_dim // num_agents
+    # dm = du * horizon
+
+    # # S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
+    # S = batch_diag(jnp.ones((num_agents, dm)))
+    # # hardcoded noise perturbation
+    # S_z = jnp.eye(2) * observation_noise
+
+    # X = unroll(dyn, xt, U)
+    # A, B = jax.vmap(dyn.linearize)(X[:-1], U)
+    # F = compute_F_from_A_B(A, B)
+    # F = jnp.permute_dims(F, (1, 0, 2))
+
+    # F_agent, F_noise = split_channel_matrix(F, num_agents)
+
+    # '''
+    # egoistic double pendulum. Each agent only cares about its own state (angle, angular velocity).
+    # '''
+    # F_agent = jnp.stack([
+    #     F_agent[0, [0, 2], :],
+    #     F_agent[1, [1, 3], :]
+    #     ], axis = 0)
+
+    # ## chained indexing allows to select the correct submatrices
+    # F_noise = jnp.stack([
+    #     F_noise[0][:, [0, 2], :],
+    #     F_noise[1][:, [1, 3], :]
+    # ], axis = 0)
+
+    # print(F_agent.shape, F_noise.shape)
+
+    # iterations = 10
+    # empowerment = jnp.zeros((iterations, num_agents))
+
+    # for i in range(iterations):
+    #     e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+    #     S = alpha * S + (1 - alpha) * S_
+    #     print(e)
+    #     empowerment = empowerment.at[i].set(e)
+
+    # fig, ax = plt.subplots(1, 1)
+    # ax.plot(empowerment[:, 0])
+    # ax.plot(empowerment[:, 1])
+    # plt.show()
+    # '''
+    # END: plot actual iwf
+    # '''
+
 
     X = jnp.zeros((steps+1, dyn.state_dim))
     X = X.at[0].set(xt)
