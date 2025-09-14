@@ -132,6 +132,17 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: flo
         _, B = dyn.linearize(_xt, U[0])
         grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, power, alpha, observation_noise)
 
+        def _check_for_nan(grad_E, power):
+            if jnp.any(jnp.isnan(grad_E)):
+                # Print both grad_E and power so you know the conditions
+                print('❌ NaN detected in grad_E!')
+                print('grad_E:', grad_E)
+                print('power:', power)
+                raise ValueError('grad_E contains NaN!')
+
+        # inside your jitted function:
+        jax.debug.callback(_check_for_nan, grad_E, power)
+
         ## compute action
         ut = jnp.sign(jnp.diag(grad_E @ B)) * power
 
@@ -238,7 +249,7 @@ if __name__ == '__main__':
         ## pads the pairs and keys if the actual batch size is less than the expected batch size
         if actual_effective_batch_size < effective_batch_size:
             pad_size = effective_batch_size - actual_effective_batch_size
-            # batch_pairs = jnp.vstack([batch_pairs, jnp.zeros((pad_size, 2))])
+
             batch_pairs = jnp.vstack([batch_pairs, jnp.ones((pad_size, 2))])
             batch_keys = jnp.concatenate([batch_keys, jax.random.split(key, pad_size)])
 
@@ -254,7 +265,8 @@ if __name__ == '__main__':
     print(f'Starting sweep at {time.ctime()}')
     start_time = time.time()
 
-    for batch_idx in tqdm(range(num_batches), desc = f'Sweep (horizon={horizon})'):
+    # for batch_idx in tqdm(range(num_batches), desc = f'Sweep (horizon={horizon})'):
+    for batch_idx in range(num_batches):
 
         start_idx = batch_idx * effective_batch_size
         end_idx = min((batch_idx + 1) * effective_batch_size, num_pairs)
@@ -262,10 +274,16 @@ if __name__ == '__main__':
         batch_pairs, batch_keys = prepare_batch(start_idx, end_idx)
 
         ## run in parallel
+        print()
+        print(f'Starting running batch {batch_idx}')
         batch_start = time.time()
         batch_X = pmap_batch_run_multiagent_empowerment(dyn, U, batch_pairs, alpha, batch_keys)
         batch_time = time.time() - batch_start
+        print(f'Finished running batch {batch_idx}')
 
+        ## evaluate outcomes
+        print()
+        print(f'Starting batch evaluation {batch_idx}')
         batch_X = batch_X.reshape(effective_batch_size, steps + 1, dyn.state_dim)
         ## evaluate the outcome of each simulation in the batch
         batch_outcomes = batch_get_linked_pendulum_outcome(batch_X)
@@ -275,11 +293,19 @@ if __name__ == '__main__':
         batch_J = J.reshape(-1)[start_idx:end_idx]
         outcomes = outcomes.at[batch_I, batch_J].set(batch_outcomes)
         batch_pairs = batch_pairs.reshape(effective_batch_size, 2)[:actual_effective_batch_size]
+        print(f'Finished batch evaluation {batch_idx}')
 
+        ## save results
+        print()
+        print(f'Starting saving batch {batch_idx}')
         ## save trajectories, outcomes, and power pairs
         jnp.save(output_dir / f'X_batch_{batch_idx}.npy', batch_X)
         jnp.save(output_dir / f'outcomes_batch_{batch_idx}.npy', batch_outcomes)
         jnp.save(output_dir / f'pairs_batch_{batch_idx}.npy', batch_pairs)
+        print(f'Finished saving batch {batch_idx}')
+
+        ## report time
+        print()
         print(f'Batch {batch_idx + 1}/{num_batches} ({end_idx}/{num_pairs} simulations) took {batch_time:.2f} seconds, saved X, outcomes, and pairs')
 
     ## save final outcomes and powers

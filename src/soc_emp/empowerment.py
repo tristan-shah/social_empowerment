@@ -138,8 +138,6 @@ def split_channel_matrix(F: Array, num_agents: int):
     F_agent: (agents x big state x message) sensitivity matrix of big state to agents own actions.
     F_noise: (agents x agents x big state x message) sensitivity of big state to all other agents actions.
     '''
-    # assert F.shape[2] % num_agents == 0
-
     ## chunking the channel matrix along the action dimention to split the effect of each agent
     ## assumes that each agent has the same dimention of actions so it chunks it evenly
     F_agent = jnp.split(F, num_agents, axis = 2)
