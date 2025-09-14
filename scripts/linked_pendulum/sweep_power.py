@@ -156,6 +156,7 @@ if __name__ == '__main__':
     parser.add_argument('--horizon', type = int, default = 50)
     parser.add_argument('--alpha', type = float, default = 0.01)
     parser.add_argument('--observation_noise', type = float, default = 1.0)
+    parser.add_argument('--batch_size', type = int, default = 50)
     args = parser.parse_args()
     print(f'GPU devices: {jax.devices()}')
 
@@ -167,12 +168,10 @@ if __name__ == '__main__':
     observation_noise = args.observation_noise
     num_powers = 30                         ## resolution of the sweep
     powers = jnp.linspace(0.5, 3.0, num_powers)
-    device_batch_size = 50
+    device_batch_size = args.batch_size
     num_devices = jax.device_count()
 
-    # output_dir = Path(f'sweep_power/horizon={horizon}')
-    # output_dir = Path(f'sweep_power/horizon={horizon}_alpha={alpha}_obsnoise=0.0')
-    output_dir = Path(f'results/tol=1e-3/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
+    output_dir = Path(f'results/batch_size={device_batch_size}_tol=1e-3/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
