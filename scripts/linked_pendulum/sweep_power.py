@@ -159,6 +159,10 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type = int, default = 50)
     args = parser.parse_args()
     print(f'GPU devices: {jax.devices()}')
+    print(f'Horizon = {args.horizon}')
+    print(f'Alpha = {args.alpha}')
+    print(f'Noise = {args.observation_noise}')
+    print(f'Batch Size = {args.batch_size}')
 
     ## Hyperparams
     key = jax.random.key(5)
@@ -171,7 +175,8 @@ if __name__ == '__main__':
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
 
-    output_dir = Path(f'results/batch_size={device_batch_size}_tol=1e-3/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
+    # output_dir = Path(f'results/batch_size={device_batch_size}_tol=1e-3/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
+    output_dir = Path(f'results/max_iter=2/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
