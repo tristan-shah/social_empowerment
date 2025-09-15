@@ -32,7 +32,6 @@ def get_linked_pendulum_outcome(traj: Array):
     right_up = jnp.all(right_angle_from_bottom[-50:] >= 2.1)
 
     neither_up = jnp.logical_and(jnp.logical_not(left_up), jnp.logical_not(right_up))
-    # both_up = jnp.logical_and(left_up, right_up)
 
     outcome = jnp.where(neither_up, 0,
                 jnp.where(jnp.logical_and(left_up, jnp.logical_not(right_up)), 1,

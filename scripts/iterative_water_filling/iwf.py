@@ -13,19 +13,14 @@ if __name__ == '__main__':
     key = jax.random.PRNGKey(41)
 
     receive_dim = 5
-    num_agents = 10
-    horizon = 20
+    num_agents = 3
+    horizon = 100
     agent_transmit_dim = 5
     dm = horizon * agent_transmit_dim
 
     power = jnp.ones(num_agents)
-    iterations = 50
-    alpha = 0.6
-    # assert 0.0 <= alpha < 1.0
-
-    alpha_start = 1.0
-    alpha_end = 0.1
-    decay = 0.9
+    iterations = 100
+    alpha = 0.7
 
     ## construct a random channel matrix
     H = jax.random.normal(key, (receive_dim, horizon, num_agents * agent_transmit_dim))
@@ -42,11 +37,9 @@ if __name__ == '__main__':
     S_z = jnp.eye(receive_dim) * 1.0
 
     hist = jnp.zeros((iterations, num_agents))
-
     e_prev = jnp.ones(num_agents) * jnp.inf
 
     for i in range(iterations):
-        # alpha = jnp.maximum(alpha_end, alpha_start - (alpha_start - alpha_end) * (i / iterations) * decay)
 
         e, S_ = waterfilling_operator(H_agent, H_noise, S, S_z, power)
         ## simultanious iterative waterfilling update

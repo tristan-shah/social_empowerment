@@ -33,7 +33,6 @@ def get_linked_pendulum_outcome(traj: Array):
     right_up = jnp.all(right_angle_from_bottom[-50:] >= 2.1)
 
     neither_up = jnp.logical_and(jnp.logical_not(left_up), jnp.logical_not(right_up))
-    # both_up = jnp.logical_and(left_up, right_up)
 
     outcome = jnp.where(neither_up, 0,
                 jnp.where(jnp.logical_and(left_up, jnp.logical_not(right_up)), 1,
@@ -42,7 +41,7 @@ def get_linked_pendulum_outcome(traj: Array):
 
     return outcome
 
-def plot_outcome_hetamap(m: Array, horizon: int, powers: Array, dt: float, path: str):
+def plot_outcome_hetamap(m: Array, power: float, horizons: Array, dt: float, path: str):
         
     # Custom colormap and norm
     colors = ['lightgray', 'blue', 'orange', 'green']
@@ -55,13 +54,13 @@ def plot_outcome_hetamap(m: Array, horizon: int, powers: Array, dt: float, path:
     img = ax.imshow(m, cmap = cmap, norm = norm, origin = 'lower')
 
     # Convert powers to numpy and determine tick spacing
-    powers_np = np.array(powers)
-    full_tick_positions = np.arange(len(powers))
-    tick_spacing = 4  # show every 4th tick (adjust as needed)
+    horizons_np = np.array(horizons) * dt
+    full_tick_positions = np.arange(len(horizons))
+    tick_spacing = 5  # show every 4th tick (adjust as needed)
 
     # Select every nth tick
     sparse_tick_positions = full_tick_positions[::tick_spacing]
-    sparse_tick_labels = np.round(powers_np[::tick_spacing], 2)
+    sparse_tick_labels = horizons_np[::tick_spacing]
 
     # Set sparse ticks and labels
     ax.set_xticks(sparse_tick_positions)
@@ -69,9 +68,9 @@ def plot_outcome_hetamap(m: Array, horizon: int, powers: Array, dt: float, path:
     ax.set_yticks(sparse_tick_positions)
     ax.set_yticklabels(sparse_tick_labels)
 
-    ax.set_xlabel('Right Agent Power')
-    ax.set_ylabel('Left Agent Power')
-    ax.set_title(f'Horizon = {horizon * dt} (seconds)')
+    ax.set_xlabel('Right Agent Horizon (s)')
+    ax.set_ylabel('Left Agent Horizon (s)')
+    ax.set_title(f'Power = {power}')
 
     # Add colorbar with custom ticks/labels
     cbar = plt.colorbar(img, ax = ax, ticks=[0, 1, 2, 3])
@@ -83,40 +82,7 @@ def plot_outcome_hetamap(m: Array, horizon: int, powers: Array, dt: float, path:
     plt.close(fig)
     return
 
-def plot_iteration_hetamap(heatmap: Array, horizon: int, powers: Array, path: str):
-
-    fig, ax = plt.subplots(figsize=(6, 5))
-    img = ax.imshow(heatmap, origin = 'lower')
-
-    # Convert powers to numpy and determine tick spacing
-    powers_np = np.array(powers)
-    full_tick_positions = np.arange(len(powers))
-    tick_spacing = 4  # show every 4th tick (adjust as needed)
-
-    # Select every nth tick
-    sparse_tick_positions = full_tick_positions[::tick_spacing]
-    sparse_tick_labels = np.round(powers_np[::tick_spacing], 2)
-
-    # Set sparse ticks and labels
-    ax.set_xticks(sparse_tick_positions)
-    ax.set_xticklabels(sparse_tick_labels, rotation = 90)
-    ax.set_yticks(sparse_tick_positions)
-    ax.set_yticklabels(sparse_tick_labels)
-
-    ax.set_xlabel('Right Agent Power')
-    ax.set_ylabel('Left Agent Power')
-    ax.set_title(f'Horizon = {horizon}')
-
-    # Add colorbar with custom ticks/labels
-    cbar = plt.colorbar(img, ax = ax)
-    cbar.set_label('IWF Iterations')
-
-    plt.tight_layout()
-    fig.savefig(path, dpi = 300)
-    plt.close(fig)
-    return
-
-def run_multiagent_empowerment(dyn: Dynamics, U: Array, horizon: tuple[int, int], power: Array, alpha: float, observation_noise: float, steps: int, key):
+def run_multiagent_empowerment(dyn: Dynamics, U: Array, horizon: Array, power: Array, alpha: float, observation_noise: float, steps: int, key):
     '''
     runs the multi agent empowerment controller where each agent selects an action proportional to the gradient
     of empowerment.
@@ -125,7 +91,7 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, horizon: tuple[int, int]
     ## obtain the initial zero state of the system
     xt = dyn.init_state()
 
-    # @jax.jit
+    @jax.jit
     def _step_linked_pendulums(carry, _):
         _xt, _key = carry
 
@@ -166,7 +132,7 @@ if __name__ == '__main__':
     power = jnp.array([args.power, args.power])
     alpha = args.alpha                          ## smoothing for synchronous IWF
     observation_noise = args.observation_noise
-    horizons = jnp.arange(50, 205, 5)#.tolist()
+    horizons = jnp.arange(50, 205, 5)
     device_batch_size = 3#50
     num_devices = jax.device_count()
     print(horizons)
@@ -201,12 +167,6 @@ if __name__ == '__main__':
 
     # ## create zero control sequence
     U = jnp.zeros((max_horizon, dyn.control_dim))
-
-    horizon = (horizons[0], horizons[0])
-
-    # print(horizon)
-    # X = run_multiagent_empowerment(dyn, U, horizon, power, alpha, observation_noise, steps, key)
-    # print(X)
 
     ## create indexes for the heatmap
     I, J = jnp.meshgrid(jnp.arange(num_horizons), jnp.arange(num_horizons), indexing='ij')
@@ -256,46 +216,39 @@ if __name__ == '__main__':
     print(f'Starting sweep at {time.ctime()}')
     start_time = time.time()
 
-    for batch_idx in tqdm(range(num_batches), desc = f'Sweep (horizon={horizon})'):
+    for batch_idx in tqdm(range(num_batches), desc = f'Sweep (power={power})'):
 
         start_idx = batch_idx * effective_batch_size
         end_idx = min((batch_idx + 1) * effective_batch_size, num_pairs)
         actual_effective_batch_size = end_idx - start_idx
         batch_pairs, batch_keys = prepare_batch(start_idx, end_idx)
-
-        batch_pairs = [tuple(row) for row in batch_pairs[0].tolist()]
         print(batch_pairs)
 
-        # X = batch_run_multiagent_empowerment(dyn, U, batch_pairs, alpha, batch_keys[0])
-        # print(X)
-
-        break
         ## run in parallel
         batch_start = time.time()
         batch_X = pmap_batch_run_multiagent_empowerment(dyn, U, batch_pairs, alpha, batch_keys)
         batch_time = time.time() - batch_start
 
-        # break
+        print(batch_X.shape)
 
-    #     batch_X = batch_X.reshape(effective_batch_size, steps + 1, dyn.state_dim)
-    #     ## evaluate the outcome of each simulation in the batch
-    #     batch_outcomes = batch_get_linked_pendulum_outcome(batch_X)
+        batch_X = batch_X.reshape(effective_batch_size, steps + 1, dyn.state_dim)
+        ## evaluate the outcome of each simulation in the batch
+        batch_outcomes = batch_get_linked_pendulum_outcome(batch_X)
 
-    #     batch_outcomes = batch_outcomes.reshape(-1)[:actual_effective_batch_size]
-    #     batch_I = I.reshape(-1)[start_idx:end_idx]
-    #     batch_J = J.reshape(-1)[start_idx:end_idx]
-    #     outcomes = outcomes.at[batch_I, batch_J].set(batch_outcomes)
-    #     batch_pairs = batch_pairs.reshape(effective_batch_size, 2)[:actual_effective_batch_size]
+        batch_outcomes = batch_outcomes.reshape(-1)[:actual_effective_batch_size]
+        batch_I = I.reshape(-1)[start_idx:end_idx]
+        batch_J = J.reshape(-1)[start_idx:end_idx]
+        outcomes = outcomes.at[batch_I, batch_J].set(batch_outcomes)
+        batch_pairs = batch_pairs.reshape(effective_batch_size, 2)[:actual_effective_batch_size]
 
-    #     ## save trajectories, outcomes, and power pairs
-    #     jnp.save(output_dir / f'X_batch_{batch_idx}.npy', batch_X)
-    #     jnp.save(output_dir / f'outcomes_batch_{batch_idx}.npy', batch_outcomes)
-    #     jnp.save(output_dir / f'pairs_batch_{batch_idx}.npy', batch_pairs)
-    #     print(f'Batch {batch_idx + 1}/{num_batches} ({end_idx}/{num_pairs} simulations) took {batch_time:.2f} seconds, saved X, outcomes, and pairs')
+        ## save trajectories, outcomes, and power pairs
+        jnp.save(output_dir / f'X_batch_{batch_idx}.npy', batch_X)
+        jnp.save(output_dir / f'outcomes_batch_{batch_idx}.npy', batch_outcomes)
+        jnp.save(output_dir / f'pairs_batch_{batch_idx}.npy', batch_pairs)
+        print(f'Batch {batch_idx + 1}/{num_batches} ({end_idx}/{num_pairs} simulations) took {batch_time:.2f} seconds, saved X, outcomes, and pairs')
 
-    # ## save final outcomes and powers
-    # jnp.save(output_dir / 'outcomes.npy', outcomes)
-    # jnp.save(output_dir / 'powers.npy', powers)
-    # plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
-
-    # print(f'Completed sweep at {time.ctime()}, total time {time.time() - start_time:.2f} seconds')
+    ## save final outcomes and powers
+    jnp.save(output_dir / 'outcomes.npy', outcomes)
+    jnp.save(output_dir / 'powers.npy', horizons)
+    plot_outcome_hetamap(outcomes, args.power, horizons, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
+    print(f'Completed sweep at {time.ctime()}, total time {time.time() - start_time:.2f} seconds')
