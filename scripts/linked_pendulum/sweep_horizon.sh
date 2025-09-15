@@ -15,6 +15,6 @@ export PYTHONUNBUFFERED=1  # Add this
 
 # Run your Python script
 python scripts/linked_pendulum/sweep_horizon.py --power 1.0 --alpha 0.01 --observation_noise 1.0
-# python scripts/linked_pendulum/sweep_horizon.py --horizon 100 --alpha 0.01 --observation_noise 0.1
-# python scripts/linked_pendulum/sweep_horizon.py --horizon 100 --alpha 0.01 --observation_noise 0.01
-# python scripts/linked_pendulum/sweep_horizon.py --horizon 100 --alpha 0.01 --observation_noise 0.001
+# python scripts/linked_pendulum/sweep_horizon.py --power 1.0 --alpha 0.01 --observation_noise 0.1
+# python scripts/linked_pendulum/sweep_horizon.py --power 1.0 --alpha 0.01 --observation_noise 0.01
+# python scripts/linked_pendulum/sweep_horizon.py --power 1.0 --alpha 0.01 --observation_noise 0.001
