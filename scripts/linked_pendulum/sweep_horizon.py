@@ -11,7 +11,7 @@ from matplotlib.colors import ListedColormap, BoundaryNorm
 
 from soc_emp import Dynamics
 # from soc_emp.empowerment import compute_multiagent_empowerment_grad
-from variable_horizon import compute_multiagent_empowerment_grad
+from variable_horizon import compute_multiagent_empowerment_grad, compute_multiagent_control
 from soc_emp.utils import smooth_angle_wrap
 
 '''
@@ -99,13 +99,10 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, horizon: Array, power: A
         _, B = dyn.linearize(_xt, U[0])
         grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power, alpha, observation_noise)
 
-        ## compute action
-        ut = jnp.sign(jnp.diag(grad_E @ B)) * power
-
         ## pick a random direction with max power if the action is zero
         sub_key, _key = jax.random.split(_key)
-        random_direction = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(ut.shape[0],))
-        ut = ut + (ut == 0) * power * random_direction
+        # random_direction = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(ut.shape[0],))
+        ut = compute_multiagent_control(grad_E, B, power, sub_key)
 
         ## propagate dynamics
         _xt = dyn.step(_xt, ut)
