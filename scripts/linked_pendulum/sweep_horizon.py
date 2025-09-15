@@ -133,7 +133,7 @@ if __name__ == '__main__':
     alpha = args.alpha                          ## smoothing for synchronous IWF
     observation_noise = args.observation_noise
     horizons = jnp.arange(50, 205, 5)
-    device_batch_size = 3#50
+    device_batch_size = 50
     num_devices = jax.device_count()
     print(horizons)
     max_horizon = max(horizons)
@@ -222,14 +222,11 @@ if __name__ == '__main__':
         end_idx = min((batch_idx + 1) * effective_batch_size, num_pairs)
         actual_effective_batch_size = end_idx - start_idx
         batch_pairs, batch_keys = prepare_batch(start_idx, end_idx)
-        print(batch_pairs)
 
         ## run in parallel
         batch_start = time.time()
         batch_X = pmap_batch_run_multiagent_empowerment(dyn, U, batch_pairs, alpha, batch_keys)
         batch_time = time.time() - batch_start
-
-        print(batch_X.shape)
 
         batch_X = batch_X.reshape(effective_batch_size, steps + 1, dyn.state_dim)
         ## evaluate the outcome of each simulation in the batch
