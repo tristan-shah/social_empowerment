@@ -117,7 +117,7 @@ batch_get_linked_pendulum_outcome = jax.vmap(get_linked_pendulum_outcome)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--power', type = float, default = 1.0)
+    # parser.add_argument('--power', type = float, default = 1.0)
     parser.add_argument('--alpha', type = float, default = 0.01)
     parser.add_argument('--observation_noise', type = float, default = 1.0)
     args = parser.parse_args()
@@ -126,7 +126,8 @@ if __name__ == '__main__':
     ## Hyperparams
     key = jax.random.key(5)
     steps = 1500                                ## simulation horizon
-    power = jnp.array([args.power, args.power])
+    # power = jnp.array([args.power, args.power])
+    power = jnp.array([1.5, 1.3])
     alpha = args.alpha                          ## smoothing for synchronous IWF
     observation_noise = args.observation_noise
     horizons = jnp.arange(50, 205, 5)
@@ -136,7 +137,8 @@ if __name__ == '__main__':
     max_horizon = max(horizons)
     num_horizons = len(horizons)
 
-    output_dir = Path(f'results/sweep_horizon/power={args.power}_alpha={alpha}_observation_noise={observation_noise}')
+    # output_dir = Path(f'results/sweep_horizon/power={args.power}_alpha={alpha}_observation_noise={observation_noise}')
+    output_dir = Path(f'results/sweep_horizon/power={power}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
@@ -244,5 +246,8 @@ if __name__ == '__main__':
     ## save final outcomes and powers
     jnp.save(output_dir / 'outcomes.npy', outcomes)
     jnp.save(output_dir / 'powers.npy', horizons)
-    plot_outcome_hetamap(outcomes, args.power, horizons, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
+
+
+    # plot_outcome_hetamap(outcomes, args.power, horizons, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
+    plot_outcome_hetamap(outcomes, power, horizons, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
     print(f'Completed sweep at {time.ctime()}, total time {time.time() - start_time:.2f} seconds')
