@@ -2,6 +2,7 @@ import jax
 from jax import Array
 from jax import numpy as jnp
 from einops import einsum, rearrange
+import matplotlib.pyplot as plt
 
 from soc_emp import Dynamics
 from soc_emp.empowerment import unroll, waterfilling_implicit, compute_power, compute_F_from_A_B
@@ -27,7 +28,23 @@ def compute_total_hessian(Hxx: Array, Hxu: Array, Hux: Array, Huu: Array, grad_p
     
     return total_hessian
 
-def hessian_propagation(Hxx, Hxu, Hux, Huu, grad_pi):
+def hessian_propagation(Hxx: Array, Hxu: Array, Hux: Array, Huu: Array, A: Array, B: Array, grad_pi: Array):
+    '''
+    Takes in sequences of hessians and jacobians computed along a nominal trajectory and the gradient of the policy. 
+    Computes hessian propagation which tells the total second order sensitivity of the final state to the initial state.
+
+    Args:
+    Hxx: (time x state x state x state)
+    Hxu: (time x state x state x control)
+    Hux: (time x state x control x state)
+    Huu: (time x state x control x control)
+    A: (time x state x state)
+    B: (time x state x control)
+    grad_pi: (time x control x state)
+
+    Returns:
+    A tensor representing total second order sensitivity: (state x state x state)
+    '''
 
     dx = Hxx.shape[1]
 
@@ -39,12 +56,12 @@ def hessian_propagation(Hxx, Hxu, Hux, Huu, grad_pi):
         total_hessian = compute_total_hessian(Hxx[t], Hxu[t], Hux[t], Huu[t], grad_pi[t])
         H = einsum(J, total_hessian, J, 'x1 x2, f x1 x3, x3 x4 -> f x2 x4') + einsum(total_grad, H, 'f x1, x1 x2 x3 -> f x2 x3')
         J = total_grad @ J
-        
+
     return H
 
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
-    horizon = 50
+    horizon = 100
     power = 1.0
     steps = 1500
 
@@ -61,92 +78,96 @@ if __name__ == '__main__':
     U = jnp.zeros((horizon, dyn.control_dim)) + jax.random.normal(key, (horizon, dyn.control_dim)) * 0.1
 
     ## roll out the nominal trajectory
-    # X = unroll(dyn, xt, U)
-    # A, B = jax.vmap(dyn.linearize)(X[:-1], U)
-
+    X = unroll(dyn, xt, U)
+    A, B = jax.vmap(dyn.linearize)(X[:-1], U)
     ''' Fake data '''
-    A = jax.random.normal(key, (horizon, dx, dx))
-    B = jax.random.normal(key, (horizon, dx, du))
-
-    ## observation noise
-    noise = I * 1.0
+    # A = jax.random.normal(key, (horizon, dx, dx))
+    # B = jax.random.normal(key, (horizon, dx, du))
+    # ## observation noise
+    # noise = I * 1.0
 
     F = rearrange(compute_F_from_A_B(A, B), 't x u -> x (t u)')
     sigma = compute_sigma(F, power)
     sigma = jnp.diag(sigma)
     sigma = sigma[:, None, None]
     ## compute instantanious hessians along the nominal trajectory
-    # (Hxx, Hxu), (Hux, Huu) = jax.vmap(jax.jacfwd(jax.jacfwd(dyn.step, argnums = (0, 1)), argnums = (0, 1)))(X[:-1], U)
+    (Hxx, Hxu), (Hux, Huu) = jax.vmap(jax.jacfwd(jax.jacfwd(dyn.step, argnums = (0, 1)), argnums = (0, 1)))(X[:-1], U)
     ''' Fake data '''
-    Hxx = jax.random.normal(key, (horizon, dx, dx, dx))
-    Hxu = jax.random.normal(key, (horizon, dx, dx, du))
-    Hux = jax.random.normal(key, (horizon, dx, du, dx))
-    Huu = jax.random.normal(key, (horizon, dx, du, du))
+    # Hxx = jax.random.normal(key, (horizon, dx, dx, dx))
+    # Hxu = jax.random.normal(key, (horizon, dx, dx, du))
+    # Hux = jax.random.normal(key, (horizon, dx, du, dx))
+    # Huu = jax.random.normal(key, (horizon, dx, du, du))
     print(Hxx.shape, Hxu.shape, Hux.shape, Huu.shape)
 
     J = jnp.eye(dyn.state_dim)
     P = jnp.zeros((dyn.state_dim, dyn.state_dim))
     damping = jnp.eye(dyn.control_dim) * 1e-5
-
     ## to store the gradients of the policy
     grad_pi = jnp.zeros((horizon, dyn.control_dim, dyn.state_dim))
 
+    W_hist = []
 
     for t in reversed(range(horizon)):
+        
         ## compute feedback channel
         G = J @ B[t]
         T = I + G @ sigma[t] @ G.T
         T_inv = jnp.linalg.inv(T)
 
-        H = hessian_propagation(Hxx[t+1:], Hxu[t+1:], Hux[t+1:], Huu[t+1:], grad_pi[t+1:])
+        ## propagate second order sensitivities to the end of the horizon
+        H = hessian_propagation(Hxx[t+1:], Hxu[t+1:], Hux[t+1:], Huu[t+1:], A[t+1:], B[t+1:], grad_pi[t+1:])
 
-        ## calculated by hessian propagation
-        # Gu = Huu[t]
-        # Gx = Hux[t]
-
-        # total_hessian = ...
-        # Gx = B[t].T @ total_hessian @ A[t] + J @ Hux[t]
-
+        ## gradient of feedback channel w.r.t state
         Gx = einsum(B[t], H, A[t], 'x1 u1, f x1 x2, x2 x3 -> f u1 x3') \
            + einsum(J, Hux[t], 'f x1, x1 u1 x2 -> f u1 x2')
         
-        print(Gx.shape)
-
-        if t < 47:
-            break
-
-        # ## computing cross term
-        # F = T_inv @ einsum(Gu, sigma, Gx, 'x1 u1 u2, u1 u3, x2 u3 x3 -> u2 x1 x2 x3')
-        # F = jnp.trace(F, axis1 = 1, axis2 = 2)
-
-        # ## computing quadratic control term
-        # W = T_inv @ einsum(Gu, sigma, Gu, 'x1 u1 u2, u1 u3, x2 u3 u4 -> u2 x1 x2 u4')
-        # W = jnp.trace(W, axis1 = 1, axis2 = 2)
-
-        # ## computing quadratic state term
-        # V = T_inv @ einsum(Gx, sigma, Gx, 'x1 u1 x2, u1 u2, x3 u2 x4 -> x2 x1 x3 x4')
-        # V = jnp.trace(V, axis1 = 1, axis2 = 2)
-
-        # ## compute inverse term one time
-        # S = jnp.linalg.inv(damping + W + B[t].T @ P @ B[t])
-
-        # ## gradient of the policy
-        # grad_pi = grad_pi.at[t].set(
-        #     - S @ (B[t].T @ P @ A[t] + F)
-        # )
-
-        # ## total derivative of the dynamics
-        # total_grad = A[t] + B[t] @ grad_pi
-        # J = total_grad @ J
-
-        # ## step riccati equation backwards
-        # P = V \
-        #     + A[t].T @ P @ A[t] \
-        #     - A[t].T @ P @ B[t] @ S @ B[t].T @ P @ A[t] \
-        #     - A[t].T @ P @ B[t] @ S @ F - F.T @ S @ B[t].T @ P @ A[t] \
-        #     - F.T @ S @ F
+        ## gradient of feedback channel w.r.t control
+        Gu = einsum(B[t], H, B[t], 'x1 u1, f x1 x2, x2 u2 -> f u1 u2') \
+           + einsum(J, Huu[t], 'f x1, x1 u1 u2 -> f u1 u2')
         
-        # total_hessian = compute_total_hessian(Hxx[t], Hxu[t], Hux[t], Huu[t], grad_pi[t])
-        # print(total_hessian)
+        ## cross term
+        F = T_inv @ einsum(Gu, sigma[t], Gx, 'x1 u1 u2, u1 u3, x2 u3 x3 -> u2 x1 x2 x3')
+        F = jnp.trace(F, axis1 = 1, axis2 = 2)
 
-        # break
+        ## quadratic control term
+        W = T_inv @ einsum(Gu, sigma[t], Gu, 'x1 u1 u2, u1 u3, x2 u3 u4 -> u2 x1 x2 u4')
+        W = jnp.trace(W, axis1 = 1, axis2 = 2)
+
+        W_hist.append(W)
+
+        ## quadratic state term
+        V = T_inv @ einsum(Gx, sigma[t], Gx, 'x1 u1 x2, u1 u2, x3 u2 x4 -> x2 x1 x3 x4')
+        V = jnp.trace(V, axis1 = 1, axis2 = 2)
+
+        ## compute inverse term once
+        S_inv = jnp.linalg.inv(damping + W + B[t].T @ P @ B[t])
+
+        ## gradient of the policy
+        grad_pi = grad_pi.at[t].set(- S_inv @ (B[t].T @ P @ A[t] + F) )
+
+        ## closed loop jacobian
+        total_grad = A[t] + B[t] @ grad_pi[t]
+
+        ## propagate closed loop jacobian backwards
+        J = J @ total_grad
+
+        ## step riccati equation backwards
+        P = V \
+            + A[t].T @ P @ A[t] \
+            - A[t].T @ P @ B[t] @ S_inv @ B[t].T @ P @ A[t] \
+            - A[t].T @ P @ B[t] @ S_inv @ F - F.T @ S_inv @ B[t].T @ P @ A[t] \
+            - F.T @ S_inv @ F
+        
+        print(t, W)
+
+    W_hist = jnp.stack(W_hist)
+
+    fig, ax = plt.subplots(1, 2)
+
+    ax[0].set_title('Policy Gradient')
+    ax[0].plot(grad_pi[:, 0, 0])
+    ax[0].plot(grad_pi[:, 0, 1])
+
+    ax[1].set_title('W')
+    ax[1].plot(W_hist[:, 0, 0])
+    plt.show()
