@@ -127,6 +127,8 @@ class iLQR:
         k = jnp.zeros((T, du))
         K = jnp.zeros((T, du, dx))
 
+        P_hist = []
+
         for t in reversed(range(e.shape[0])):
             P = L + M
             ## inverse term
@@ -147,7 +149,11 @@ class iLQR:
             L = total_grad.T @ L @ total_grad + Q
             M = total_grad.T @ M @ total_grad + grad_pi.T @ R @ grad_pi
 
-        return k, K
+            P_hist.append(P)
+
+        P_hist = jnp.flip(jnp.stack(P_hist))
+
+        return k, K, P_hist
     
 def render_go(dyn: Dynamics, X: Array, path: str):
     

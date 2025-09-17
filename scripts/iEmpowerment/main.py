@@ -61,7 +61,7 @@ def hessian_propagation(Hxx: Array, Hxu: Array, Hux: Array, Huu: Array, A: Array
 
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
-    horizon = 100
+    horizon = 200
     power = 1.0
     steps = 1500
 
@@ -74,8 +74,8 @@ if __name__ == '__main__':
     I = jnp.eye(dyn.state_dim)
 
     xt = jnp.zeros(dyn.state_dim)
-    xt = xt.at[0].set(-1.0)
-    U = jnp.zeros((horizon, dyn.control_dim)) + jax.random.normal(key, (horizon, dyn.control_dim)) * 0.1
+    xt = xt.at[0].set(1.0)
+    U = jnp.zeros((horizon, dyn.control_dim))# + jax.random.normal(key, (horizon, dyn.control_dim)) * 0.1
 
     ## roll out the nominal trajectory
     X = unroll(dyn, xt, U)
@@ -83,8 +83,8 @@ if __name__ == '__main__':
     ''' Fake data '''
     # A = jax.random.normal(key, (horizon, dx, dx))
     # B = jax.random.normal(key, (horizon, dx, du))
-    # ## observation noise
-    # noise = I * 1.0
+    ## observation noise
+    noise = I * 1.0
 
     F = rearrange(compute_F_from_A_B(A, B), 't x u -> x (t u)')
     sigma = compute_sigma(F, power)
@@ -99,13 +99,22 @@ if __name__ == '__main__':
     # Huu = jax.random.normal(key, (horizon, dx, du, du))
     print(Hxx.shape, Hxu.shape, Hux.shape, Huu.shape)
 
+    ## storing the total sensitivity of the final state to an intial perturbation
     J = jnp.eye(dyn.state_dim)
+    ## initial value of the riccati equation solution
     P = jnp.zeros((dyn.state_dim, dyn.state_dim))
+    ## how much to regularize the inverse term
     damping = jnp.eye(dyn.control_dim) * 1e-5
     ## to store the gradients of the policy
     grad_pi = jnp.zeros((horizon, dyn.control_dim, dyn.state_dim))
+    ## gradient of empowerment w.r.t state
+    E = jnp.zeros(dyn.state_dim)
 
-    W_hist = []
+
+    E_hist = []
+    P_hist = []
+
+    k = jnp.zeros((horizon, dyn.control_dim))
 
     for t in reversed(range(horizon)):
         
@@ -129,15 +138,21 @@ if __name__ == '__main__':
         F = T_inv @ einsum(Gu, sigma[t], Gx, 'x1 u1 u2, u1 u3, x2 u3 x3 -> u2 x1 x2 x3')
         F = jnp.trace(F, axis1 = 1, axis2 = 2)
 
+        ## quadratic state term
+        V = T_inv @ einsum(Gx, sigma[t], Gx, 'x1 u1 x2, u1 u2, x3 u2 x4 -> x2 x1 x3 x4')
+        V = jnp.trace(V, axis1 = 1, axis2 = 2)
+
         ## quadratic control term
         W = T_inv @ einsum(Gu, sigma[t], Gu, 'x1 u1 u2, u1 u3, x2 u3 u4 -> u2 x1 x2 u4')
         W = jnp.trace(W, axis1 = 1, axis2 = 2)
 
-        W_hist.append(W)
+        ## gradient of empowerment w.r.t state
+        v = T_inv @ einsum(G, sigma[t], Gx, 'x1 u1, u1 u2, x2 u2 x3 -> x1 x2 x3')
+        v = jnp.trace(v, axis1 = 0, axis2 = 1)
 
-        ## quadratic state term
-        V = T_inv @ einsum(Gx, sigma[t], Gx, 'x1 u1 x2, u1 u2, x3 u2 x4 -> x2 x1 x3 x4')
-        V = jnp.trace(V, axis1 = 1, axis2 = 2)
+        ## gradient of empowerment w.r.t control
+        w = T_inv @ einsum(G, sigma[t], Gu, 'x1 u1, u1 u2, x2 u2 u3 -> x1 x2 u3')
+        w = jnp.trace(w, axis1 = 0, axis2 = 1)
 
         ## compute inverse term once
         S_inv = jnp.linalg.inv(damping + W + B[t].T @ P @ B[t])
@@ -147,6 +162,12 @@ if __name__ == '__main__':
 
         ## closed loop jacobian
         total_grad = A[t] + B[t] @ grad_pi[t]
+
+        # print(w + E.T @ B[t])
+        k = k.at[t].set( - S_inv @ (w + B[t].T @ E) )
+
+        ## step back the gradient of empowerment
+        E = v + grad_pi[t].T @ w + total_grad.T @ E
 
         ## propagate closed loop jacobian backwards
         J = J @ total_grad
@@ -158,16 +179,35 @@ if __name__ == '__main__':
             - A[t].T @ P @ B[t] @ S_inv @ F - F.T @ S_inv @ B[t].T @ P @ A[t] \
             - F.T @ S_inv @ F
         
-        print(t, W)
+        print(t, k[t])
 
-    W_hist = jnp.stack(W_hist)
+        E_hist.append(E)
+        P_hist.append(P)
+        
+    E_hist = jnp.flip(jnp.stack(E_hist), axis = 0)
+    P_hist = jnp.flip(jnp.stack(P_hist), axis = 0)
 
-    fig, ax = plt.subplots(1, 2)
-
+    fig, ax = plt.subplots(1, 4)
+    fig.suptitle(f'Initial Theta: {xt[0]}')
     ax[0].set_title('Policy Gradient')
+    ax[0].set_xlabel('Horizon')
     ax[0].plot(grad_pi[:, 0, 0])
     ax[0].plot(grad_pi[:, 0, 1])
 
-    ax[1].set_title('W')
-    ax[1].plot(W_hist[:, 0, 0])
+    ax[1].set_title('Empowerment Gradient')
+    ax[1].set_xlabel('Horizon')
+    ax[1].plot(E_hist[:, 0])
+    ax[1].plot(E_hist[:, 1])
+
+    ax[2].set_title('Riccati Solution')
+    ax[2].set_xlabel('Horizon')
+    ax[2].plot(P_hist[:, 0, 0])
+    ax[2].plot(P_hist[:, 0, 1])
+    ax[2].plot(P_hist[:, 1, 0])
+    ax[2].plot(P_hist[:, 1, 1])
+
+    ax[3].set_title('Feedforward')
+    ax[3].plot(k[:, 0])
+
+    fig.tight_layout()
     plt.show()
