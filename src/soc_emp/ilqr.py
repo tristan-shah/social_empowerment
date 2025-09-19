@@ -7,7 +7,7 @@ import numpy as np
 import mujoco
 
 from soc_emp import Dynamics
-from soc_emp.utils import smooth_angle_wrap, split_state, diff_qpos
+from soc_emp.utils import smooth_angle_wrap, split_state#, diff_qpos
 
 class TrajectoryOptimizer:
     '''
@@ -66,16 +66,16 @@ class TrajectoryOptimizer:
                 '''
                 raw subtraction
                 '''
-                # delta_x = X_new[t] - X[t]
+                delta_x = X_new[t] - X[t]
 
                 '''
                 Custom diff
                 '''
 
-                X_pos, X_vel = split_state(X[t], self.dyn.nq)
-                X_new_pos, X_new_vel = split_state(X_new[t], self.dyn.nq)
-                dqpos = diff_qpos(self.dyn.model, X_pos, X_new_pos)
-                delta_x = jnp.concatenate([dqpos, X_new_vel - X_vel])
+                # X_pos, X_vel = split_state(X[t], self.dyn.nq)
+                # X_new_pos, X_new_vel = split_state(X_new[t], self.dyn.nq)
+                # dqpos = diff_qpos(self.dyn.model, X_pos, X_new_pos)
+                # delta_x = jnp.concatenate([dqpos, X_new_vel - X_vel])
 
                 '''
                 mujoco delta_x

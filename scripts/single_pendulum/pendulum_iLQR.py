@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from soc_emp import Dynamics
 from soc_emp.ilqr import TrajectoryOptimizer, ModelPredictiveController
-from soc_emp.utils import smooth_angle_wrap, diff_qpos, split_state
+from soc_emp.utils import smooth_angle_wrap, split_state #diff_qpos
 
 def compute_pendulum_error(X: Array):
     assert X.shape[1] == 2
