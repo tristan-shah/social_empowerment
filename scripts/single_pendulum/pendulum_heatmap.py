@@ -11,7 +11,7 @@ if __name__ == '__main__':
     xml_path = 'xml/custom/pendulum.xml'
     dyn = Dynamics(path = xml_path)
 
-    T = 25 #50
+    T = 200 #50
     P = 1.0
 
     U = jnp.zeros((T, dyn.control_dim))
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     # Clamp the magnitudes to a reasonable range
     min_len = 0.1
-    max_len = 1.0
+    max_len = 0.1 #1.0
     norm_clamped = jnp.clip(norm, min = min_len, max = max_len)
 
     # Rescale gradients to use clamped magnitudes
