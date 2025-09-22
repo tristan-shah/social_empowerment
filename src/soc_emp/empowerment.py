@@ -113,7 +113,7 @@ def compute_empowerment(dyn: Dynamics, xt: Array, U: Array, P: float):
     
     ## S is the covariance matrix of the final state.
     S = einsum(F, F, 'x1 T u, x2 T u -> x1 x2')
-    h2 = jnp.linalg.eigvalsh(S)
+    h2 = jnp.linalg.eigvalsh(S).clip(min = 1e-12)
     v = waterfilling_implicit(h2, P)
     p = compute_power(v, h2)
     e = 0.5 * jnp.sum(jnp.log(1 + p * h2))

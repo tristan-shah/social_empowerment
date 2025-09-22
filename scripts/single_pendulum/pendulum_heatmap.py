@@ -9,9 +9,9 @@ from soc_emp.empowerment import compute_empowerment, compute_empowerment_grad
 
 if __name__ == '__main__':
     xml_path = 'xml/custom/pendulum.xml'
-    dyn = Dynamics(path = xml_path)
+    dyn = Dynamics(path = xml_path, dt = 0.01)
 
-    T = 200 #50
+    T = 30
     P = 1.0
 
     U = jnp.zeros((T, dyn.control_dim))
@@ -33,7 +33,6 @@ if __name__ == '__main__':
             e = compute_empowerment(dyn, x0, U, P)
             empowerment_landscape = empowerment_landscape.at[i, j].set(e)
             print(i, j, e, grad_e)
-            # print(i, j, e)
 
 
     Theta, Theta_dot = jnp.meshgrid(theta, theta_dot, indexing = 'ij')

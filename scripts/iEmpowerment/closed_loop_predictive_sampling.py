@@ -10,14 +10,24 @@ from soc_emp.empowerment import unroll
 
 @jax.jit
 def compute_pendulum_error(X: Array):
-    assert X.shape[1] == 2
 
     r = jnp.stack([
         smooth_angle_wrap(X[:, 0] - jnp.pi),
         X[:, 1]
     ], axis = 1)
 
-    assert r.shape == X.shape
+    return r
+
+@jax.jit
+def compute_double_pendulum_error(X: Array):
+
+    r = jnp.stack([
+        smooth_angle_wrap(X[:, 0] - jnp.pi),
+        smooth_angle_wrap(X[:, 0] + X[:, 1] - jnp.pi),
+        X[:, 2],
+        X[:, 3]
+    ], axis = 1)
+
     return r
 
 class PredictiveSampling:
@@ -77,28 +87,37 @@ if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
     ## load in xml
-    xml_path = 'xml/custom/pendulum.xml'
-    dyn = Dynamics(path = xml_path)
+    # xml_path = 'xml/custom/pendulum.xml'
+    xml_path = 'xml/custom/double_pendulum.xml'
+    dyn = Dynamics(path = xml_path, dt = 0.01)
     Q = jnp.eye(dyn.state_dim)
-    Q = Q.at[1, 1].set(0.01)
+    # Q = Q.at[1, 1].set(0.01)
+    Q = Q.at[2, 2].set(0.01)
+    Q = Q.at[3, 3].set(0.01)
     R = jnp.eye(dyn.control_dim)
 
     x0 = jnp.zeros(dyn.state_dim)
 
-    horizon = 100
+    horizon = 200
     N = 1000
-    knots = 10
+    knots = 100
     sigma = 0.1
+    steps = 3000
 
-    opt = PredictiveSampling(dyn, compute_pendulum_error, horizon, N, knots, sigma, Q, R)
+    # opt = PredictiveSampling(dyn, compute_pendulum_error, horizon, N, knots, sigma, Q, R)
+    opt = PredictiveSampling(dyn, compute_double_pendulum_error, horizon, N, knots, sigma, Q, R)
 
     U = jnp.zeros((horizon, dyn.control_dim))
+
+    # x0 = x0.at[0].set(3.14)
+    # X = unroll(dyn, x0, U)
+    # dyn.render(X, path = 'test.mp4', distance = 5.0, skip = 2, lookat = jnp.array([0, 0, 2.2]))
 
     fig, ax = plt.subplots(1, 2)
 
     cost_hist = []
 
-    for i in range(30):
+    for i in range(100):
         ax[0].plot(U, color = 'blue', alpha = 0.5)
         X, U, J = opt(x0, U, key)
 
@@ -108,13 +127,10 @@ if __name__ == '__main__':
     ax[1].plot(cost_hist)
     plt.show()
 
-    steps = 600
-
     xt = x0.copy()
 
     X = jnp.zeros((steps + 1, dyn.state_dim))
     X = X.at[0].set(xt)
-
 
     cost_hist = []
     for t in range(steps):
@@ -125,7 +141,7 @@ if __name__ == '__main__':
         X = X.at[t+1].set(xt)
         cost_hist.append(J)
 
-        print(xt, J)
+        print(t, J, xt, ut)
 
         ## shift over the plan by one action
         U = jnp.roll(U, shift = -1, axis = 0)
@@ -137,6 +153,7 @@ if __name__ == '__main__':
     ax.set_xlabel('Timestep')
     ax.set_ylabel('Cost')
     ax.plot(cost_hist)
+    fig.savefig('PS_gear=8.png', dpi = 300)
     plt.show()
 
     fig, ax = plt.subplots(1, 1)
@@ -149,4 +166,4 @@ if __name__ == '__main__':
     ax.legend()
     plt.show()
 
-    dyn.render(X, path = 'test.mp4', skip = 2)
+    dyn.render(X, path = 'PS_gear=8.mp4', distance = 5.0, skip = 2, lookat = jnp.array([0, 0, 2.2]))

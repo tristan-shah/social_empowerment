@@ -69,3 +69,60 @@ def cubic_spline_interp(x: Array, y: Array, x_new: Array) -> Array:
     d_i = d_coef[idx]
 
     return a_i + b_i*dx + c_i*dx**2 + d_i*dx**3
+
+@jax.jit
+def zero_order_interp(x: Array, y: Array, x_new: Array) -> Array:
+    '''
+    Zero-order (piecewise constant) interpolation, JAX compatible.
+
+    Args:
+        x: shape (n,), strictly increasing knots
+        y: shape (n, d), data values
+        x_new: shape (m,), query points
+
+    Returns:
+        y_new: shape (m, d), interpolated values
+    '''
+    n, d = y.shape
+
+    # Find interval indices: right bin edge, subtract 1 -> nearest left knot
+    idx = jnp.searchsorted(x, x_new, side = "right") - 1
+    idx = jnp.clip(idx, 0, n-1)  # clamp to valid range
+
+    # Gather corresponding y-values
+    return y[idx]
+
+import jax
+import jax.numpy as jnp
+from jax import Array
+
+@jax.jit
+def linear_interp(x: Array, y: Array, x_new: Array) -> Array:
+    '''
+    Linear interpolation, JAX compatible.
+
+    Args:
+        x: shape (n,), strictly increasing knots
+        y: shape (n, d), data values
+        x_new: shape (m,), query points
+
+    Returns:
+        y_new: shape (m, d), interpolated values
+    '''
+    n, d = y.shape
+
+    # Find interval indices (left endpoint of interval)
+    idx = jnp.searchsorted(x, x_new) - 1
+    idx = jnp.clip(idx, 0, n - 2)  # keep inside valid range
+
+    # Compute normalized position within interval
+    x0 = x[idx]
+    x1 = x[idx + 1]
+    t = (x_new - x0) / (x1 - x0)
+
+    # Get corresponding y-values
+    y0 = y[idx]
+    y1 = y[idx + 1]
+
+    # Linear interpolation
+    return (1.0 - t[:, None]) * y0 + t[:, None] * y1

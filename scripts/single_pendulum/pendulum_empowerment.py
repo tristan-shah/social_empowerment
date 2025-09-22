@@ -57,7 +57,7 @@ if __name__ == '__main__':
     ## plotting the empowerment over time
     fig, ax = plt.subplots(1, 1)
     fig.suptitle('Single Pendulum Empowerment', fontsize = 14)
-    ax.set_xlim(0.0, 15.0)
+    ax.set_xlim(0.0, steps * dt)
     ax.tick_params(axis = 'both', labelsize = 12)
     ax.set_xlabel('Time (s)', fontsize = 14)
     ax.set_ylabel('Empowerment (Nats)',  fontsize = 14)
