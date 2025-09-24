@@ -28,7 +28,7 @@ if __name__ == '__main__':
         z = z - eta * grad_energy(z) + jnp.sqrt(2 * eta) * noise
 
         fig, ax = plt.subplots(1, 1)
-        ax.plot(x, y / y.sum())
+        ax.plot(x, y)
         ax.scatter(z, level, alpha = 0.1)
         ax.hist(z, bins = 50, density = True, alpha=0.5, label="Samples")
         plt.show()
