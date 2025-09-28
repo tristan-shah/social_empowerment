@@ -186,7 +186,7 @@ if __name__ == '__main__':
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
 
-    output_dir = Path(f'results/fixed_nans/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
+    output_dir = Path(f'results/far_apart/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 

@@ -15,11 +15,10 @@ if __name__ == '__main__':
     key = jax.random.key(4)
     steps = 1500  ## simulation horizon
     alpha = 0.01
-    horizon = 100
+    horizon = 200
     observation_noise = 1.0
 
-    # power = jnp.array([2.31034483, 2.31034483])
-    power = jnp.array([1.5, 1.3])
+    power = jnp.array([2.0, 1.3])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
