@@ -100,7 +100,6 @@ if __name__ == '__main__':
     X = jnp.zeros((steps+1, dyn.state_dim))
     X = X.at[0].set(xt)
 
-
     iterations = jnp.zeros(steps)
     empowerment = jnp.zeros((steps, 2))
     
@@ -127,9 +126,6 @@ if __name__ == '__main__':
     dyn.render(X, path = run_name + '.mp4', skip = 3)
 
     fig, ax = plt.subplots(2, 1)
-    # fig.suptitle(f'Horizon = {horizon * dt} (seconds)')
-    # fig.suptitle('Failure Outcome', fontsize = 14)
-    # fig.suptitle('Domination Outcome', fontsize = 14)
     ## plot empowerment
     ax[0].plot(empowerment[:, 0], label = 'Left Agent', color = 'blue')
     ax[0].plot(empowerment[:, 1], label = 'Right Agent', color = 'orange')
