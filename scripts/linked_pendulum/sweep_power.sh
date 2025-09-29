@@ -14,4 +14,4 @@ conda activate soc_emp
 export PYTHONUNBUFFERED=1  # Add this
 
 # Run your Python script
-python scripts/linked_pendulum/sweep_power.py --horizon 100 --alpha 0.01 --observation_noise 0.001
+python scripts/linked_pendulum/sweep_power.py --horizon 140 --alpha 0.01 --observation_noise 1.0
