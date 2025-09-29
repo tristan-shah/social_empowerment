@@ -84,14 +84,16 @@ if __name__ == '__main__':
     ## system hyperparameters
     key = jax.random.key(4)
     steps = 1500  ## interaction horizon
-    horizon = jnp.array([95, 100])
-    power = jnp.array([1.5, 1.3])
+    horizon = jnp.array([175, 50])
+    # power = jnp.array([1.5, 1.5])
+    power = jnp.array([1.0, 1.0])
     alpha = 0.01
     observation_noise = 1.0
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
     dyn = Dynamics(path = xml_path)
+    dt = dyn.mjx_model.opt.timestep
 
     ## planning horizon should be the maximum of all agent's horizons
     U = jnp.zeros((max(horizon), dyn.control_dim))
@@ -133,7 +135,7 @@ if __name__ == '__main__':
     ax[0].tick_params(axis = 'both', labelsize = 12)
     ax[0].legend(fontsize = 12)
     ax[0].set_xticks([])
-    ax[0].set_xlim(0, 1500)
+    ax[0].set_xlim(0, steps)
 
     ## plot angle from top
     agent_0_angle = jnp.abs(smooth_angle_wrap(X[:, 0] - jnp.pi))
@@ -142,12 +144,12 @@ if __name__ == '__main__':
     ax[1].plot(agent_1_angle, color = 'orange')
     ax[1].set_ylabel('Angle From Top', fontsize = 14)
     ax[1].tick_params(axis = 'both', labelsize = 12)
-    ax[1].set_xlim(0, 1500)
+    ax[1].set_xlim(0, steps)
     ax[1].set_xlabel('Interaction Time (s)', fontsize = 14)
 
     n_ticks = 5
     positions = np.linspace(0, empowerment.shape[0] - 1, n_ticks)
-    labels = np.linspace(0.0, 15.0, n_ticks)
+    labels = np.linspace(0.0, steps * dt, n_ticks)
 
     ax[1].set_xticks(positions)
     ax[1].set_xticklabels(labels, rotation = 'horizontal')

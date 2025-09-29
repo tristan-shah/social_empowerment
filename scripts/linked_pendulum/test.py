@@ -12,13 +12,16 @@ if __name__ == '__main__':
     print(f'GPU devices: {jax.devices()}')
 
     ## hyperparams
-    key = jax.random.key(4)
+    # seed = 4
+    seed = 8
+    key = jax.random.key(seed)
     steps = 1500  ## simulation horizon
     alpha = 0.01
-    horizon = 200
+    horizon = 120
     observation_noise = 1.0
 
-    power = jnp.array([2.0, 1.3])
+    # power = jnp.array([1.88, 2.20])
+    power = jnp.array([2.20, 1.88])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -103,9 +106,11 @@ if __name__ == '__main__':
         ## obtain control gain
         _, B = dyn.linearize(xt, U[0])
         grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, observation_noise)
+        print(grad_E)
+        exit()
 
         key, sub_key = jax.random.split(key)
-        ut = compute_multiagent_control(grad_E, B, power, key)
+        ut = compute_multiagent_control(grad_E, B, power, sub_key)
 
         i, e, _ = compute_multiagent_empowerment(dyn, xt, U, power, alpha, observation_noise)
 
@@ -116,15 +121,12 @@ if __name__ == '__main__':
         empowerment = empowerment.at[t].set(e)
         print(t, xt, ut, e, i)
 
-    run_name = f'horizon={horizon}_power={power}_alpha={alpha}_noise={observation_noise}'
+    run_name = f'seed={seed}_horizon={horizon}_power={power}_alpha={alpha}_noise={observation_noise}'
 
     dyn.render(X, path = run_name + '.mp4', skip = 3)
 
 
     fig, ax = plt.subplots(3, 1)
-    # fig.suptitle(f'Horizon = {horizon * dt} (seconds)')
-    # fig.suptitle('Failure Outcome', fontsize = 14)
-    # fig.suptitle('Domination Outcome', fontsize = 14)
     ## plot empowerment
     ax[0].plot(empowerment[:, 0], label = 'Left Agent', color = 'blue')
     ax[0].plot(empowerment[:, 1], label = 'Right Agent', color = 'orange')
@@ -150,7 +152,7 @@ if __name__ == '__main__':
 
     ax[1].set_xticks(positions)
     ax[1].set_xticklabels(labels, rotation = 'horizontal')
-
+    
     ax[2].plot(iterations)
 
     fig.tight_layout()
