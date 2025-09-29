@@ -215,7 +215,6 @@ def iterative_waterfilling(H_agent: Array, H_noise: Array, S: Array, S_z: Array,
     def cond_fun(state):
         i, S, e, e_prev = state
         return jnp.logical_and(
-            # jnp.any(jnp.abs(e - e_prev) > 1e-3),
             jnp.any(jnp.abs(e - e_prev) > 1e-5),
             i < MAX_ITER
         )

@@ -176,17 +176,20 @@ if __name__ == '__main__':
     print(f'Batch Size = {args.batch_size}')
 
     ## Hyperparams
-    key = jax.random.key(5)
+    seed = 10
+    # key = jax.random.key(5)
+    key = jax.random.key(seed)
     steps = 1500                            ## simulation horizon
     alpha = args.alpha                      ## smoothing for synchronous IWF
     horizon = args.horizon                  ## empowerment horizon
     observation_noise = args.observation_noise
     num_powers = 30                         ## resolution of the sweep
+    # num_powers = 100                         ## resolution of the sweep
     powers = jnp.linspace(0.5, 3.0, num_powers)
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
 
-    output_dir = Path(f'results/far_apart/horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
+    output_dir = Path(f'results/far_apart/seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 

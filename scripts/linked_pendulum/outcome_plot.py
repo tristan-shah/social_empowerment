@@ -1,8 +1,39 @@
 from pathlib import Path
+import jax
+from jax import Array
 from jax import numpy as jnp
 
 from soc_emp import Dynamics
-from scripts.linked_pendulum.sweep_power import batch_get_linked_pendulum_outcome, plot_outcome_hetamap
+from soc_emp.utils import smooth_angle_wrap
+# from sweep_power import batch_get_linked_pendulum_outcome, plot_outcome_hetamap
+from sweep_power import plot_outcome_hetamap
+
+
+def get_linked_pendulum_outcome(traj: Array):
+    '''
+    absolute value of the angle from the top should be less than 1 rad.
+    angular velocity should be less than 2 rad / sec.
+    '''
+
+    ## check angle from the bottom (0.0 rad). top is jnp.pi rad
+    left_angle_from_bottom = jnp.abs(smooth_angle_wrap(traj[:, 0]))
+    right_angle_from_bottom = jnp.abs(smooth_angle_wrap(traj[:, 1]))
+
+    ## get final state
+    left_up = jnp.all(left_angle_from_bottom[-200:] >= 2.1)
+    right_up = jnp.all(right_angle_from_bottom[-200:] >= 2.1)
+
+    neither_up = jnp.logical_and(jnp.logical_not(left_up), jnp.logical_not(right_up))
+
+    outcome = jnp.where(neither_up, 0,
+                jnp.where(jnp.logical_and(left_up, jnp.logical_not(right_up)), 1,
+                jnp.where(jnp.logical_and(jnp.logical_not(left_up), right_up), 2,
+                3)))
+
+    return outcome
+
+## create a function to evaluate the outcome of a batch of linked_pendulum runs
+batch_get_linked_pendulum_outcome = jax.vmap(get_linked_pendulum_outcome)
 
 if __name__ == '__main__':
     # load dynamics
@@ -10,46 +41,43 @@ if __name__ == '__main__':
     dyn = Dynamics(path=xml_path)
     print(f'Timestep = {dyn.mjx_model.opt.timestep}')
     
-    folder = Path('sweep_power')
+    folder = Path('results/far_apart')
 
-    for horizon in [50, 75, 100, 125, 150, 175, 200]:
-        horizon = 100
-        batches = 5
-        powers = jnp.linspace(0.5, 3.0, 30)
-        num_powers = powers.shape[0]
+    alpha = 0.01
+    observation_noise = 1.0
 
-        outcomes = jnp.zeros((num_powers, num_powers))
-        pair_map = jnp.zeros((num_powers, num_powers, 2))
+    horizon = 200
+    batches = 5
+    powers = jnp.linspace(0.5, 3.0, 30)
+    num_powers = powers.shape[0]
 
-        for batch in range(batches):
+    outcomes = jnp.zeros((num_powers, num_powers))
+    pair_map = jnp.zeros((num_powers, num_powers, 2))
 
-            path = folder / f'horizon={horizon}'
-            # pairs = jnp.load(path / f'horizon={horizon}_pairs_batch_{batch}.npy')
-            # X = jnp.load(path / f'horizon={horizon}_X_batch_{batch}.npy')
+    for batch in range(batches):
 
-            pairs = jnp.load(path / f'pairs_batch_{batch}.npy')
-            X = jnp.load(path / f'X_batch_{batch}.npy')
+        path = folder / f'horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}'
+ 
+        pairs = jnp.load(path / f'pairs_batch_{batch}.npy')
+        X = jnp.load(path / f'X_batch_{batch}.npy')
 
+        batch_I = jnp.searchsorted(powers, pairs[:, 0])
+        batch_J = jnp.searchsorted(powers, pairs[:, 1])
+        outcomes = outcomes.at[batch_I, batch_J].set(batch_get_linked_pendulum_outcome(X[0:pairs.shape[0]]))
+        pair_map = pair_map.at[batch_I, batch_J].set(pairs)
 
-            batch_I = jnp.searchsorted(powers, pairs[:, 0])
-            batch_J = jnp.searchsorted(powers, pairs[:, 1])
-            outcomes = outcomes.at[batch_I, batch_J].set(batch_get_linked_pendulum_outcome(X[0:pairs.shape[0]]))
-            pair_map = pair_map.at[batch_I, batch_J].set(pairs)
-            # print(pairs.shape, X.shape)
-            # print(pairs.shape)
-
-        collaboration_percentage = (outcomes == 3).sum() / (outcomes > 0).sum()
-        print(horizon * dyn.mjx_model.opt.timestep, '\t', collaboration_percentage)
+    collaboration_percentage = (outcomes == 3).sum() / (outcomes > 0).sum()
+    print(horizon * dyn.mjx_model.opt.timestep, '\t', collaboration_percentage)
 
     # print(pair_map[outcomes == 3])
 
-    import jax
-    p = jax.random.choice(
-        jax.random.PRNGKey(20), 
-        pair_map[outcomes == 1],
-        shape = (10,), 
-        replace = False
-        )
-    
-    print(p)
+    # import jax
+    # p = jax.random.choice(
+    #     jax.random.PRNGKey(20), 
+    #     pair_map[outcomes == 1],
+    #     shape = (10,), 
+    #     replace = False
+    #     )
+    # print(p)
+
     plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = f'horizon={horizon}_outcome_heatmap.png')
