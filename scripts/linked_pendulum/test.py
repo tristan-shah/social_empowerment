@@ -12,21 +12,27 @@ if __name__ == '__main__':
     print(f'GPU devices: {jax.devices()}')
 
     ## hyperparams
-    # seed = 4
     seed = 8
     key = jax.random.key(seed)
     steps = 1500  ## simulation horizon
     alpha = 0.01
-    horizon = 120
+    horizon = 100
     observation_noise = 1.0
-
-    # power = jnp.array([1.88, 2.20])
-    power = jnp.array([2.20, 1.88])
+    stiffness = 3.0
+    damping = 0.1
+    power = jnp.array([1.5, 1.1])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
     dyn = Dynamics(path = xml_path)
     dt = dyn.mjx_model.opt.timestep
+
+    ## setting the properties of the tendon
+    dyn.mjx_model = dyn.mjx_model.replace(
+        tendon_stiffness = dyn.mjx_model.tendon_stiffness.at[:].set(stiffness),
+        tendon_damping = dyn.mjx_model.tendon_damping.at[:].set(damping)
+    )
+
     print(f'Timestep = {dt}')
     print(f'Horizon = {horizon}')
 
@@ -34,6 +40,51 @@ if __name__ == '__main__':
     U = jnp.zeros((horizon, dyn.control_dim))
     
     xt = dyn.init_state()
+
+
+    from soc_emp.empowerment import unroll, compute_F_from_A_B, split_channel_matrix, iterative_waterfilling, batch_diag
+
+    num_agents = len(power)
+    horizon = U.shape[0]
+    du = dyn.control_dim // num_agents
+    dm = du * horizon
+
+    S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
+    # hardcoded noise perturbation
+    S_z = jnp.eye(2) * observation_noise
+
+    X = unroll(dyn, xt, U)
+    A, B = jax.vmap(dyn.linearize)(X[:-1], U)
+    F = compute_F_from_A_B(A, B)
+    F = jnp.permute_dims(F, (1, 0, 2))
+
+    F_agent, F_noise = split_channel_matrix(F, num_agents)
+
+    print(F_noise)
+
+    '''
+    egoistic double pendulum. Each agent only cares about its own state (angle, angular velocity).
+    '''
+    F_agent = jnp.stack([
+        F_agent[0, [0, 2], :],
+        F_agent[1, [1, 3], :]
+        ], axis = 0)
+
+    ## chained indexing allows to select the correct submatrices
+    F_noise = jnp.stack([
+        F_noise[0][:, [0, 2], :],
+        F_noise[1][:, [1, 3], :]
+    ], axis = 0)
+
+    i, e, S = iterative_waterfilling(F_agent, F_noise, S, S_z, power, alpha)
+
+    # print(i, e)
+    # print(S)
+    # exit()
+
+
+
+
 
     # '''
     # START: plot iwf
@@ -89,12 +140,6 @@ if __name__ == '__main__':
     # END: plot actual iwf
     # '''
 
-    # delta = jax.random.normal(key, power.shape) * 0.01
-    # print(delta)
-    # grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, observation_noise)
-    # print(grad_E)
-    # grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power + delta, alpha, observation_noise)
-    # print(grad_E)
 
     X = jnp.zeros((steps+1, dyn.state_dim))
     X = X.at[0].set(xt)
@@ -107,7 +152,7 @@ if __name__ == '__main__':
         _, B = dyn.linearize(xt, U[0])
         grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, observation_noise)
         print(grad_E)
-        exit()
+        # exit()
 
         key, sub_key = jax.random.split(key)
         ut = compute_multiagent_control(grad_E, B, power, sub_key)

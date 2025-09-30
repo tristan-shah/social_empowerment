@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from soc_emp import Dynamics
-from soc_emp.empowerment import unroll, compute_F_from_A_B, split_channel_matrix, batch_diag, iterative_waterfilling, select_output, waterfilling_operator, compute_multiagent_control
+from soc_emp.empowerment import unroll, compute_F_from_A_B, split_channel_matrix, batch_diag, iterative_waterfilling, select_output, waterfilling_operator, compute_multiagent_control, MAX_ITER
 from soc_emp.utils import smooth_angle_wrap
 
 @jax.jit
@@ -84,16 +84,23 @@ if __name__ == '__main__':
     ## system hyperparameters
     key = jax.random.key(4)
     steps = 1500  ## interaction horizon
-    horizon = jnp.array([175, 50])
-    # power = jnp.array([1.5, 1.5])
+    horizon = jnp.array([50, 50])
     power = jnp.array([1.0, 1.0])
     alpha = 0.01
     observation_noise = 1.0
+    stiffness = 0.0
+    damping = 0.0
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
     dyn = Dynamics(path = xml_path)
     dt = dyn.mjx_model.opt.timestep
+
+    ## setting the properties of the tendon
+    dyn.mjx_model = dyn.mjx_model.replace(
+        tendon_stiffness = dyn.mjx_model.tendon_stiffness.at[:].set(stiffness),
+        tendon_damping = dyn.mjx_model.tendon_damping.at[:].set(damping)
+    )
 
     ## planning horizon should be the maximum of all agent's horizons
     U = jnp.zeros((max(horizon), dyn.control_dim))
@@ -123,11 +130,11 @@ if __name__ == '__main__':
         empowerment = empowerment.at[t].set(e)
         print(t, xt, ut, e, i)
 
-    run_name = f'horizon={horizon}_power={power}_alpha={alpha}_noise={observation_noise}'
+    run_name = f'iter={MAX_ITER}_horizon={horizon}_power={power}_alpha={alpha}_noise={observation_noise}_stiffness={stiffness}_damping={damping}'
 
     dyn.render(X, path = run_name + '.mp4', skip = 3)
 
-    fig, ax = plt.subplots(2, 1)
+    fig, ax = plt.subplots(3, 1)
     ## plot empowerment
     ax[0].plot(empowerment[:, 0], label = 'Left Agent', color = 'blue')
     ax[0].plot(empowerment[:, 1], label = 'Right Agent', color = 'orange')
@@ -135,7 +142,7 @@ if __name__ == '__main__':
     ax[0].tick_params(axis = 'both', labelsize = 12)
     ax[0].legend(fontsize = 12)
     ax[0].set_xticks([])
-    ax[0].set_xlim(0, steps)
+    ax[0].set_xlim(0, 1500)
 
     ## plot angle from top
     agent_0_angle = jnp.abs(smooth_angle_wrap(X[:, 0] - jnp.pi))
@@ -144,15 +151,17 @@ if __name__ == '__main__':
     ax[1].plot(agent_1_angle, color = 'orange')
     ax[1].set_ylabel('Angle From Top', fontsize = 14)
     ax[1].tick_params(axis = 'both', labelsize = 12)
-    ax[1].set_xlim(0, steps)
+    ax[1].set_xlim(0, 1500)
     ax[1].set_xlabel('Interaction Time (s)', fontsize = 14)
 
     n_ticks = 5
     positions = np.linspace(0, empowerment.shape[0] - 1, n_ticks)
-    labels = np.linspace(0.0, steps * dt, n_ticks)
+    labels = np.linspace(0.0, 15.0, n_ticks)
 
     ax[1].set_xticks(positions)
     ax[1].set_xticklabels(labels, rotation = 'horizontal')
+    
+    ax[2].plot(iterations)
 
     fig.tight_layout()
     fig.savefig(run_name + '.png', dpi = 300)

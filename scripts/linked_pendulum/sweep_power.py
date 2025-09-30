@@ -168,6 +168,7 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', type = float, default = 0.01)
     parser.add_argument('--observation_noise', type = float, default = 1.0)
     parser.add_argument('--batch_size', type = int, default = 50)
+    parser.add_argument('--stiffness', type = float, default = 3.0)
     args = parser.parse_args()
     print(f'GPU devices: {jax.devices()}')
     print(f'Horizon = {args.horizon}')
@@ -183,13 +184,14 @@ if __name__ == '__main__':
     alpha = args.alpha                      ## smoothing for synchronous IWF
     horizon = args.horizon                  ## empowerment horizon
     observation_noise = args.observation_noise
+    stiffness = args.stiffness
     # num_powers = 30                         ## resolution of the sweep
     num_powers = 100                         ## resolution of the sweep
     powers = jnp.linspace(0.5, 3.0, num_powers)
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
 
-    output_dir = Path(f'results/high_res/seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}')
+    output_dir = Path(f'results/no_contacts/seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
@@ -213,8 +215,15 @@ if __name__ == '__main__':
     xml_path = 'xml/custom/linked_pendulums.xml'
     dyn = Dynamics(path = xml_path)
     dt = dyn.mjx_model.opt.timestep
+    
+    ## overriding the stiffness of the tendon(s)
+    dyn.mjx_model = dyn.mjx_model.replace(
+        tendon_stiffness = dyn.mjx_model.tendon_stiffness.at[:].set(stiffness)
+    )
+
     print(f'Timestep = {dt}')
     print(f'Horizon = {horizon}')
+    print(f'Stiffness = {stiffness}')
 
     ## create zero control sequence
     U = jnp.zeros((horizon, dyn.control_dim))

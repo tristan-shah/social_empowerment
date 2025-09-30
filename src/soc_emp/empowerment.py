@@ -10,7 +10,16 @@ TOL = 1e-6
 
 @jax.jit
 def compute_power(water_line: Array, eigs: Array):
+    '''
+    original
+    '''
     return jnp.clip(water_line - 1 / eigs, min = 0.0)
+
+    # '''
+    # new
+    # '''
+    # eigs_safe = jnp.maximum(eigs, TOL)
+    # return jnp.clip(water_line - 1.0 / eigs_safe, a_min=0.0)
 
 def unroll(dyn: Dynamics, xt: Array, U: Array):
     '''
@@ -98,10 +107,28 @@ def waterfilling_implicit(noise_levels: Array, total_power: float):
     initial_guess = 0.0
     
     def solve(f, initial_guess):
-        return waterfilling_solver(noise_levels, total_power)
+        '''
+        original
+        '''
+        # return waterfilling_solver(noise_levels, total_power)
+
+        '''
+        new
+        '''
+        return waterfilling_solver(safe_noise, total_power)
     
     def tangent_solve(g, y):
+        '''
+        original
+        '''
         return y/g(1.0)
+
+        # '''
+        # new
+        # '''
+        # # avoid division by zero: clip derivative
+        # denom = jnp.maximum(g(1.0), TOL)
+        # return y / denom
     
     return jax.lax.custom_root(f, initial_guess, solve, tangent_solve)
 
@@ -176,14 +203,34 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
 
     ## eigen-decomp on noise
     D, Q = jnp.linalg.eigh(S_noise)
-    D_inv_sqrt = batch_diag((D + 1e-12) ** -0.5)
+
+    '''
+    original
+    '''
+    # D_inv_sqrt = batch_diag((D + 1e-12) ** -0.5)
+
+    '''
+    new
+    '''
+    D_safe = jnp.maximum(D, TOL)
+    D_inv_sqrt = batch_diag((D_safe + 1e-12) ** -0.5)
 
     ## compute new channel matrix (1/\sqrt{D}) @ Q.T @ F_agent
     H = einsum(D_inv_sqrt, Q, F_agent, 'a x1 x2, a x3 x2, a x3 m -> a x1 m')
 
     ## compute snr levels
     _, E, M = jnp.linalg.svd(H, full_matrices = False)
-    eigs = jnp.power(E, 2.0).clip(min = 1e-12)
+
+    '''
+    original
+    '''
+    # eigs = jnp.power(E, 2.0).clip(min = 1e-12)
+
+    '''
+    new
+    '''
+    eigs = jnp.maximum(E**2, TOL)
+
 
     ## compute waterline (for each agent) [nu_0, nu_1, ..., nu_k]
     nu = batch_water_filling(eigs, power)
@@ -203,6 +250,7 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     return e, S
 
 MAX_ITER = 10
+MAX_ITER = 50
 
 @jax.jit
 def iterative_waterfilling(H_agent: Array, H_noise: Array, S: Array, S_z: Array, power: Array, alpha: float):
@@ -247,7 +295,11 @@ def compute_multiagent_empowerment(
     du = dyn.control_dim // num_agents
     dm = du * horizon
 
+    '''
+    original
+    '''
     S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
+
     # hardcoded noise perturbation
     S_z = jnp.eye(2) * observation_noise
 

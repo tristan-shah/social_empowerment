@@ -1,9 +1,5 @@
 <mujoco model="linked pendulums">
 
-    <!-- <visual>
-        <global offheight="720" offwidth="1280"/>
-    </visual> -->
-
     <compiler angle="radian"/>
     <option integrator="implicitfast" timestep="0.01" gravity="0 0 -9.81"/>
 
@@ -19,7 +15,7 @@
         <light name="fill_light_1" pos="0 0 10" dir="0 0 -1" directional="false" diffuse="1 1 1" specular="0.2 0.2 0.2"/>
         <light name="fill_light_2" pos="5 0 10" dir="0 0 -1" directional="false" diffuse="1 1 1" specular="0.2 0.2 0.2"/>
 
-        <geom name="floor" pos="0 0 0" size="0 0 0.05" type="plane" material="groundplane"/>
+        <geom name="floor" pos="0 0 0" size="0 0 0.05" type="plane" material="groundplane" contype="0" conaffinity="0"/>
 
         <!-- Pendulum base -->
         <!-- <body name="pendulum:0" pos="-0.5 0 1.2"> -->
@@ -28,10 +24,10 @@
             <joint name="hinge:0" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0.1"/>
 
             <!-- Rod of the pendulum -->
-            <geom name="rod:0" type="capsule" fromto="0 0 0 0 0 -1" size="0.02" mass="1" contype="1" conaffinity="2"/>
+            <geom name="rod:0" type="capsule" fromto="0 0 0 0 0 -1" size="0.02" mass="1" contype="0" conaffinity="0"/>
 
             <!-- Mass at the end -->
-            <geom name="bob:0" type="sphere" pos="0 0 -1" size="0.05" rgba="0 0 1 1" mass="0" contype="1" conaffinity="2"/>
+            <geom name="bob:0" type="sphere" pos="0 0 -1" size="0.05" rgba="0 0 1 1" mass="0" contype="0" conaffinity="0"/>
 
             <site name="site:0" pos="0 0 -1" size="0.01"/>
         </body>
@@ -43,10 +39,10 @@
             <joint name="hinge:1" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0.1"/>
 
             <!-- Rod of the pendulum -->
-            <geom name="rod:1" type="capsule" fromto="0 0 0 0 0 -1" size="0.02" mass="1" contype="1" conaffinity="2"/>
+            <geom name="rod:1" type="capsule" fromto="0 0 0 0 0 -1" size="0.02" mass="1" contype="0" conaffinity="0"/>
 
             <!-- Mass at the end -->
-            <geom name="bob:1" type="sphere" pos="0 0 -1" size="0.05" rgba="1 0.5 0 1" mass="0" contype="1" conaffinity="2"/>
+            <geom name="bob:1" type="sphere" pos="0 0 -1" size="0.05" rgba="1 0.5 0 1" mass="0" contype="0" conaffinity="0"/>
 
             <site name="site:1" pos="0 0 -1" size="0.01"/>
         </body>
