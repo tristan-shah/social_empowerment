@@ -34,7 +34,7 @@
         </body>
 
         <!-- CART + PENDULUM 1 -->
-        <body name="cart:1" pos="1.1 0 1.2">
+        <!-- <body name="cart:1" pos="1.1 0 1.2">
             <joint name="slide:1" type="slide" axis="1 0 0" damping="0.1"/>
             <geom name="cart_geom:1" type="box" size="0.15 0.1 0.05" rgba="0.8 0.3 0.2 1" mass="1" contype="0" conaffinity="0"/>
             <site name="cart_site:1" pos="0 0 0" size="0.01" rgba="0 1 0 1"/>
@@ -46,33 +46,33 @@
                 <geom name="bob:1" type="sphere" pos="0 0 -1" size="0.05" rgba="1 0.5 0 1" mass="0.05" contype="0" conaffinity="0"/>
                 <site name="site:1" pos="0 0 -1" size="0.01"/>
             </body>
-        </body>
+        </body> -->
     </worldbody>
 
     <tendon>
         <!-- spring keeping cart:0 near its anchor -->
-        <spatial name="cart_spring_0" stiffness="100" damping="1.0" springlength="0" rgba="0 1 0 0.5" width="0.003">
+        <spatial name="cart_spring_0" stiffness="10.0" damping="0.1" springlength="0" rgba="0 1 0 0.5" width="0.003">
             <site site="anchor:0"/>
             <site site="cart_site:0"/>
         </spatial>
 
         <!-- spring keeping cart:1 near its anchor -->
-        <spatial name="cart_spring_1" stiffness="100" damping="1.0" springlength="0" rgba="0 1 0 0.5" width="0.003">
+        <!-- <spatial name="cart_spring_1" stiffness="100" damping="1.0" springlength="0" rgba="0 1 0 0.5" width="0.003">
             <site site="anchor:1"/>
             <site site="cart_site:1"/>
-        </spatial>
+        </spatial> -->
 
         <!-- spring coupling pendulum bobs -->
-        <spatial name="spring_0_1" stiffness="3.0" damping="0.1" springlength="2.2" rgba="1 0 0 1" width="0.005">
+        <!-- <spatial name="spring_0_1" stiffness="3.0" damping="0.1" springlength="2.2" rgba="1 0 0 1" width="0.005">
             <site site="site:0"/>
             <site site="site:1"/>
-        </spatial>
+        </spatial> -->
     </tendon>
 
     <actuator>
-        <!-- <motor joint="hinge:0" gear="1"/> -->
+        <motor joint="hinge:0" gear="1" ctrlrange="-1 1"/>
         <!-- <motor joint="hinge:1" gear="1"/> -->
-        <motor joint="slide:0" gear="1"/>
-        <motor joint="slide:1" gear="1"/>
+        <motor joint="slide:0" gear="1" ctrlrange="-1 1"/>
+        <!-- <motor joint="slide:1" gear="1"/> -->
     </actuator>
 </mujoco>

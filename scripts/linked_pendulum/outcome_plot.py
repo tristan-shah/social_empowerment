@@ -41,14 +41,15 @@ if __name__ == '__main__':
     dyn = Dynamics(path=xml_path)
     print(f'Timestep = {dyn.mjx_model.opt.timestep}')
     
-    folder = Path('results/far_apart')
+    folder = Path('results/seed=10_horizon=120_alpha=0.01_observation_noise=1.0_stiffness=3.0')
 
     alpha = 0.01
     observation_noise = 1.0
 
-    horizon = 200
-    batches = 5
-    powers = jnp.linspace(0.5, 3.0, 30)
+    horizon = 120
+    batches = 11
+    num_powers = 100 #30
+    powers = jnp.linspace(0.5, 3.0, 100)
     num_powers = powers.shape[0]
 
     outcomes = jnp.zeros((num_powers, num_powers))
@@ -56,7 +57,7 @@ if __name__ == '__main__':
 
     for batch in range(batches):
 
-        path = folder / f'horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}'
+        path = folder# / f'horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}'
  
         pairs = jnp.load(path / f'pairs_batch_{batch}.npy')
         X = jnp.load(path / f'X_batch_{batch}.npy')

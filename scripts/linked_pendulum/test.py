@@ -12,15 +12,16 @@ if __name__ == '__main__':
     print(f'GPU devices: {jax.devices()}')
 
     ## hyperparams
-    seed = 8
+    seed = 10
     key = jax.random.key(seed)
     steps = 1500  ## simulation horizon
     alpha = 0.01
-    horizon = 100
+    horizon = 190
     observation_noise = 1.0
     stiffness = 3.0
     damping = 0.1
-    power = jnp.array([1.5, 1.1])
+    # power = jnp.array([1.88, 2.57])
+    power = jnp.array([2.57, 1.88])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -59,8 +60,6 @@ if __name__ == '__main__':
     F = jnp.permute_dims(F, (1, 0, 2))
 
     F_agent, F_noise = split_channel_matrix(F, num_agents)
-
-    print(F_noise)
 
     '''
     egoistic double pendulum. Each agent only cares about its own state (angle, angular velocity).
