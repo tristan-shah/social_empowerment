@@ -210,7 +210,8 @@ if __name__ == '__main__':
     parser.add_argument('--observation_noise', type = float, default = 1.0)
     parser.add_argument('--batch_size', type = int, default = 50)
     parser.add_argument('--stiffness', type = float, default = 3.0)
-    parser.add_argument('--seed', type = int, default = 10)
+    parser.add_argument('--seed', type = int, default = 0)
+    parser.add_argument('--resolution', type = int, default = 100)
     args = parser.parse_args()
     print(f'GPU devices: {jax.devices()}')
     print(f'Horizon = {args.horizon}')
@@ -227,13 +228,14 @@ if __name__ == '__main__':
     horizon = args.horizon                  ## empowerment horizon
     observation_noise = args.observation_noise
     stiffness = args.stiffness
-    num_powers = 30                         ## resolution of the sweep
+    # num_powers = 30                         ## resolution of the sweep
     # num_powers = 100                         ## resolution of the sweep
+    num_powers = args.resolution
     powers = jnp.linspace(0.5, 3.0, num_powers)
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
 
-    output_dir = Path(f'results/random_initial_action/seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
+    output_dir = Path(f'results/random_initial_action/resolution={num_powers}_seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
