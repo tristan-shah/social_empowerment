@@ -15,8 +15,8 @@ if __name__ == '__main__':
     seed = 8
     key = jax.random.key(seed)
     steps = 1500  ## simulation horizon
-    horizon = 200
-    power = 1.0
+    horizon = 150 #200
+    power = 5.0
 
     # load dynamics
     xml_path = 'xml/custom/cart_pendulums.xml'
@@ -28,7 +28,6 @@ if __name__ == '__main__':
     U = jnp.zeros((horizon, dyn.control_dim))
     
     xt = dyn.init_state()
-    # xt = xt.at[1].set(1.0)
 
     from soc_emp.empowerment import compute_empowerment_grad, compute_empowerment
 
