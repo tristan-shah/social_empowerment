@@ -169,6 +169,7 @@ if __name__ == '__main__':
     parser.add_argument('--observation_noise', type = float, default = 1.0)
     parser.add_argument('--batch_size', type = int, default = 50)
     parser.add_argument('--stiffness', type = float, default = 3.0)
+    parser.add_argument('--seed', type = int, default = 10)
     args = parser.parse_args()
     print(f'GPU devices: {jax.devices()}')
     print(f'Horizon = {args.horizon}')
@@ -177,7 +178,7 @@ if __name__ == '__main__':
     print(f'Batch Size = {args.batch_size}')
 
     ## Hyperparams
-    seed = 10
+    seed = args.seed
     # key = jax.random.key(5)
     key = jax.random.key(seed)
     steps = 1500                            ## simulation horizon

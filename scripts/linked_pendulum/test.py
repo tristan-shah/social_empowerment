@@ -35,7 +35,7 @@ if __name__ == '__main__':
     ## setting the properties of the tendon
     dyn.mjx_model = dyn.mjx_model.replace(
         tendon_stiffness = dyn.mjx_model.tendon_stiffness.at[:].set(stiffness),
-        tendon_damping = dyn.mjx_model.tendon_damping.at[:].set(damping)
+        # tendon_damping = dyn.mjx_model.tendon_damping.at[:].set(damping)
     )
 
     print(f'Timestep = {dt}')
