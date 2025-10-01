@@ -5,7 +5,6 @@ from jax import numpy as jnp
 
 from soc_emp import Dynamics
 from soc_emp.utils import smooth_angle_wrap
-# from sweep_power import batch_get_linked_pendulum_outcome, plot_outcome_hetamap
 from sweep_power import plot_outcome_hetamap
 
 
@@ -20,8 +19,8 @@ def get_linked_pendulum_outcome(traj: Array):
     right_angle_from_bottom = jnp.abs(smooth_angle_wrap(traj[:, 1]))
 
     ## get final state
-    left_up = jnp.all(left_angle_from_bottom[-10:] >= 2.1)
-    right_up = jnp.all(right_angle_from_bottom[-10:] >= 2.1)
+    left_up = jnp.all(left_angle_from_bottom[-50:] >= 2.1)
+    right_up = jnp.all(right_angle_from_bottom[-50:] >= 2.1)
 
     neither_up = jnp.logical_and(jnp.logical_not(left_up), jnp.logical_not(right_up))
 
@@ -43,7 +42,7 @@ if __name__ == '__main__':
 
     horizon = 200
     
-    folder = Path(f'results/no_contacts/seed=10_horizon={horizon}_alpha=0.01_observation_noise=1.0_stiffness=3.0')
+    folder = Path(f'results/seed=10_horizon={horizon}_alpha=0.01_observation_noise=1.0_stiffness=3.0')
 
     batches = 100
     num_powers = 100
@@ -52,6 +51,11 @@ if __name__ == '__main__':
 
     outcomes = jnp.zeros((num_powers, num_powers))
     pair_map = jnp.zeros((num_powers, num_powers, 2))
+    trajectories = jnp.zeros((num_powers, num_powers, 1501, dyn.state_dim))
+
+    def find_nearest_index(array: Array, values: Array):
+        diffs = jnp.abs(array[:, None] - values[None, :])
+        return jnp.argmin(diffs, axis=0)
 
     for batch in range(batches):
 
@@ -60,12 +64,26 @@ if __name__ == '__main__':
         pairs = jnp.load(path / f'pairs_batch_{batch}.npy')
         X = jnp.load(path / f'X_batch_{batch}.npy')
 
-        batch_I = jnp.searchsorted(powers, pairs[:, 0])
-        batch_J = jnp.searchsorted(powers, pairs[:, 1])
+        # batch_I = jnp.searchsorted(powers, pairs[:, 0])
+        # batch_J = jnp.searchsorted(powers, pairs[:, 1])
+
+        batch_I = find_nearest_index(powers, pairs[:, 0])
+        batch_J = find_nearest_index(powers, pairs[:, 1])
         outcomes = outcomes.at[batch_I, batch_J].set(batch_get_linked_pendulum_outcome(X[0:pairs.shape[0]]))
         pair_map = pair_map.at[batch_I, batch_J].set(pairs)
+        trajectories = trajectories.at[batch_I, batch_J].set(X)
 
-    collaboration_percentage = (outcomes == 3).sum() / (outcomes > 0).sum()
-    print(horizon * dyn.mjx_model.opt.timestep, '\t', collaboration_percentage)
+    idx = 80
+    print(pair_map[80, 80])
+    # print(trajectories[idx, idx])
 
-    plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = f'horizon={horizon}_outcome_heatmap.png')
+    dyn.render(
+        trajectories[idx, idx],
+        path = 'equal.mp4',
+        skip = 2
+    )
+
+
+    # collaboration_percentage = (outcomes == 3).sum() / (outcomes > 0).sum()
+    # print(horizon * dyn.mjx_model.opt.timestep, '\t', collaboration_percentage)
+    # plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = f'horizon={horizon}_outcome_heatmap.png')

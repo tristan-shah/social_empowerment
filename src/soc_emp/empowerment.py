@@ -110,12 +110,12 @@ def waterfilling_implicit(noise_levels: Array, total_power: float):
         '''
         original
         '''
-        # return waterfilling_solver(noise_levels, total_power)
+        return waterfilling_solver(noise_levels, total_power)
 
         '''
         new
         '''
-        return waterfilling_solver(safe_noise, total_power)
+        # return waterfilling_solver(safe_noise, total_power)
     
     def tangent_solve(g, y):
         '''
@@ -207,13 +207,13 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     '''
     original
     '''
-    # D_inv_sqrt = batch_diag((D + 1e-12) ** -0.5)
+    D_inv_sqrt = batch_diag((D + 1e-12) ** -0.5)
 
     '''
     new
     '''
-    D_safe = jnp.maximum(D, TOL)
-    D_inv_sqrt = batch_diag((D_safe + 1e-12) ** -0.5)
+    # D_safe = jnp.maximum(D, TOL)
+    # D_inv_sqrt = batch_diag((D_safe + 1e-12) ** -0.5)
 
     ## compute new channel matrix (1/\sqrt{D}) @ Q.T @ F_agent
     H = einsum(D_inv_sqrt, Q, F_agent, 'a x1 x2, a x3 x2, a x3 m -> a x1 m')
@@ -224,12 +224,12 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     '''
     original
     '''
-    # eigs = jnp.power(E, 2.0).clip(min = 1e-12)
+    eigs = jnp.power(E, 2.0).clip(min = 1e-12)
 
     '''
     new
     '''
-    eigs = jnp.maximum(E**2, TOL)
+    # eigs = jnp.maximum(E**2, TOL)
 
 
     ## compute waterline (for each agent) [nu_0, nu_1, ..., nu_k]
@@ -249,7 +249,7 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
 
-MAX_ITER = 10
+# MAX_ITER = 10
 MAX_ITER = 50
 
 @jax.jit
@@ -346,7 +346,6 @@ def compute_multiagent_control(empowerment_grad: Array, control_gain: Array, pow
     computes an action proportional to the gradient of empowerment. 
     handles edge cases when the gradient is zero or nan.
     '''
-    
     ut = jnp.sign(jnp.diag(empowerment_grad @ control_gain)) * power
         
     ## pick a random direction with max power if the action is zero
@@ -355,5 +354,6 @@ def compute_multiagent_control(empowerment_grad: Array, control_gain: Array, pow
     ## check if any component of the control is zero and replace it with a random direction
     new_ut = ut + (ut == 0) * power * random_direction
     fallback_ut = power * random_direction
+
     nan_detected = jnp.any(jnp.isnan(empowerment_grad))
     return jnp.where(nan_detected, fallback_ut, new_ut)

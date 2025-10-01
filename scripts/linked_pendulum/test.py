@@ -10,18 +10,22 @@ from soc_emp.utils import smooth_angle_wrap
 
 if __name__ == '__main__':
     print(f'GPU devices: {jax.devices()}')
-
     ## hyperparams
-    seed = 10
+    seed = 12312
     key = jax.random.key(seed)
     steps = 1500  ## simulation horizon
     alpha = 0.01
-    horizon = 190
+    horizon = 200
     observation_noise = 1.0
     stiffness = 3.0
     damping = 0.1
-    # power = jnp.array([1.88, 2.57])
-    power = jnp.array([2.57, 1.88])
+
+    # power = jnp.array([1.81, 2.32])
+    # power = jnp.array([2.32, 1.81])
+
+    # power = jnp.array([1.31, 1.71])
+    # power = jnp.array([1.71, 1.31])
+    power = jnp.array([1.01, 2.02])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -42,119 +46,22 @@ if __name__ == '__main__':
     
     xt = dyn.init_state()
 
-
-    from soc_emp.empowerment import unroll, compute_F_from_A_B, split_channel_matrix, iterative_waterfilling, batch_diag
-
-    num_agents = len(power)
-    horizon = U.shape[0]
-    du = dyn.control_dim // num_agents
-    dm = du * horizon
-
-    S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
-    # hardcoded noise perturbation
-    S_z = jnp.eye(2) * observation_noise
-
-    X = unroll(dyn, xt, U)
-    A, B = jax.vmap(dyn.linearize)(X[:-1], U)
-    F = compute_F_from_A_B(A, B)
-    F = jnp.permute_dims(F, (1, 0, 2))
-
-    F_agent, F_noise = split_channel_matrix(F, num_agents)
-
-    '''
-    egoistic double pendulum. Each agent only cares about its own state (angle, angular velocity).
-    '''
-    F_agent = jnp.stack([
-        F_agent[0, [0, 2], :],
-        F_agent[1, [1, 3], :]
-        ], axis = 0)
-
-    ## chained indexing allows to select the correct submatrices
-    F_noise = jnp.stack([
-        F_noise[0][:, [0, 2], :],
-        F_noise[1][:, [1, 3], :]
-    ], axis = 0)
-
-    i, e, S = iterative_waterfilling(F_agent, F_noise, S, S_z, power, alpha)
-
-    # print(i, e)
-    # print(S)
-    # exit()
-
-
-
-
-
-    # '''
-    # START: plot iwf
-    # '''
-    # from soc_emp.empowerment import batch_diag, unroll, compute_F_from_A_B, split_channel_matrix, waterfilling_operator
-    # num_agents = len(power)
-    # horizon = U.shape[0]
-    # du = dyn.control_dim // num_agents
-    # dm = du * horizon
-
-    # # S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
-    # S = batch_diag(jnp.ones((num_agents, dm)))
-    # # hardcoded noise perturbation
-    # S_z = jnp.eye(2) * observation_noise
-
-    # X = unroll(dyn, xt, U)
-    # A, B = jax.vmap(dyn.linearize)(X[:-1], U)
-    # F = compute_F_from_A_B(A, B)
-    # F = jnp.permute_dims(F, (1, 0, 2))
-
-    # F_agent, F_noise = split_channel_matrix(F, num_agents)
-
-    # '''
-    # egoistic double pendulum. Each agent only cares about its own state (angle, angular velocity).
-    # '''
-    # F_agent = jnp.stack([
-    #     F_agent[0, [0, 2], :],
-    #     F_agent[1, [1, 3], :]
-    #     ], axis = 0)
-
-    # ## chained indexing allows to select the correct submatrices
-    # F_noise = jnp.stack([
-    #     F_noise[0][:, [0, 2], :],
-    #     F_noise[1][:, [1, 3], :]
-    # ], axis = 0)
-
-    # print(F_agent.shape, F_noise.shape)
-
-    # iterations = 10
-    # empowerment = jnp.zeros((iterations, num_agents))
-
-    # for i in range(iterations):
-    #     e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
-    #     S = alpha * S + (1 - alpha) * S_
-    #     print(e)
-    #     empowerment = empowerment.at[i].set(e)
-
-    # fig, ax = plt.subplots(1, 1)
-    # ax.plot(empowerment[:, 0])
-    # ax.plot(empowerment[:, 1])
-    # plt.show()
-    # '''
-    # END: plot actual iwf
-    # '''
-
-
     X = jnp.zeros((steps+1, dyn.state_dim))
     X = X.at[0].set(xt)
 
     iterations = jnp.zeros(steps)
     empowerment = jnp.zeros((steps, 2))
     
+    assert steps == empowerment.shape[0]
+    
     for t in range(steps):
         ## obtain control gain
         _, B = dyn.linearize(xt, U[0])
         grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, observation_noise)
         print(grad_E)
-        # exit()
 
         key, sub_key = jax.random.split(key)
-        ut = compute_multiagent_control(grad_E, B, power, sub_key)
+        ut = compute_multiagent_control(grad_E, B, power, key)
 
         i, e, _ = compute_multiagent_empowerment(dyn, xt, U, power, alpha, observation_noise)
 
@@ -169,7 +76,6 @@ if __name__ == '__main__':
 
     dyn.render(X, path = run_name + '.mp4', skip = 3)
 
-
     fig, ax = plt.subplots(3, 1)
     ## plot empowerment
     ax[0].plot(empowerment[:, 0], label = 'Left Agent', color = 'blue')
@@ -178,7 +84,7 @@ if __name__ == '__main__':
     ax[0].tick_params(axis = 'both', labelsize = 12)
     ax[0].legend(fontsize = 12)
     ax[0].set_xticks([])
-    ax[0].set_xlim(0, 1500)
+    ax[0].set_xlim(0, steps)
 
     ## plot angle from top
     agent_0_angle = jnp.abs(smooth_angle_wrap(X[:, 0] - jnp.pi))
@@ -187,12 +93,12 @@ if __name__ == '__main__':
     ax[1].plot(agent_1_angle, color = 'orange')
     ax[1].set_ylabel('Angle From Top', fontsize = 14)
     ax[1].tick_params(axis = 'both', labelsize = 12)
-    ax[1].set_xlim(0, 1500)
+    ax[1].set_xlim(0, steps)
     ax[1].set_xlabel('Interaction Time (s)', fontsize = 14)
 
     n_ticks = 5
-    positions = np.linspace(0, empowerment.shape[0] - 1, n_ticks)
-    labels = np.linspace(0.0, 15.0, n_ticks)
+    positions = np.linspace(0, steps - 1, n_ticks)
+    labels = np.linspace(0.0, steps * dt, n_ticks)
 
     ax[1].set_xticks(positions)
     ax[1].set_xticklabels(labels, rotation = 'horizontal')

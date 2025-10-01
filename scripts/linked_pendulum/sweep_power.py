@@ -238,7 +238,7 @@ if __name__ == '__main__':
     num_pairs = pairs.shape[0]
     num_batches = (num_pairs + effective_batch_size - 1) // effective_batch_size
 
-    def prepare_batch(start_idx: int, end_idx: int):
+    def prepare_batch(start_idx: int, end_idx: int, key):
 
         '''
         A function to prepare a batch of simulation parameters for execution on multiple gpus.
@@ -261,8 +261,10 @@ if __name__ == '__main__':
         if actual_effective_batch_size < effective_batch_size:
             pad_size = effective_batch_size - actual_effective_batch_size
 
+            ## ⚠️ split from a fresh subkey so padding randomness is also unique
+            _, pad_subkey = jax.random.split(key)
             batch_pairs = jnp.vstack([batch_pairs, jnp.ones((pad_size, 2))])
-            batch_keys = jnp.concatenate([batch_keys, jax.random.split(key, pad_size)])
+            batch_keys = jnp.concatenate([batch_keys, jax.random.split(pad_subkey, pad_size)])
 
         ## reshape so that the leading index is num_devices so pmap broadcasts correctly
         batch_pairs_reshaped = batch_pairs.reshape(num_devices, device_batch_size, 2)
@@ -282,7 +284,10 @@ if __name__ == '__main__':
         start_idx = batch_idx * effective_batch_size
         end_idx = min((batch_idx + 1) * effective_batch_size, num_pairs)
         actual_effective_batch_size = end_idx - start_idx
-        batch_pairs, batch_keys = prepare_batch(start_idx, end_idx)
+
+        # split once per batch, advance key
+        key, subkey = jax.random.split(key)
+        batch_pairs, batch_keys = prepare_batch(start_idx, end_idx, subkey)
 
         ## run in parallel
         print()
@@ -322,5 +327,5 @@ if __name__ == '__main__':
     ## save final outcomes and powers
     jnp.save(output_dir / 'outcomes.npy', outcomes)
     jnp.save(output_dir / 'powers.npy', powers)
-    # plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
+    plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
     print(f'Completed sweep at {time.ctime()}, total time {time.time() - start_time:.2f} seconds')
