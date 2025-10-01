@@ -185,13 +185,13 @@ if __name__ == '__main__':
     horizon = args.horizon                  ## empowerment horizon
     observation_noise = args.observation_noise
     stiffness = args.stiffness
-    # num_powers = 30                         ## resolution of the sweep
-    num_powers = 100                         ## resolution of the sweep
+    num_powers = 30                         ## resolution of the sweep
+    # num_powers = 100                         ## resolution of the sweep
     powers = jnp.linspace(0.5, 3.0, num_powers)
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
 
-    output_dir = Path(f'results/no_contacts/seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
+    output_dir = Path(f'results/fixed_randomness/seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
