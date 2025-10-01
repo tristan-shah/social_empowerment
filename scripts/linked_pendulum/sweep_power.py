@@ -322,6 +322,5 @@ if __name__ == '__main__':
     ## save final outcomes and powers
     jnp.save(output_dir / 'outcomes.npy', outcomes)
     jnp.save(output_dir / 'powers.npy', powers)
-    plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
-
+    # plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
     print(f'Completed sweep at {time.ctime()}, total time {time.time() - start_time:.2f} seconds')

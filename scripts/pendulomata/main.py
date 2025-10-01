@@ -1,3 +1,7 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ['MUJOCO_GL'] = 'egl'
+
 import jax
 from jax import Array
 from jax import numpy as jnp
@@ -13,10 +17,10 @@ if __name__ == '__main__':
 
     ## hyperparams
     key = jax.random.key(0)
-    steps = 1000  ## simulation horizon
+    steps = 3000  ## simulation horizon
     power = 1.0
     alpha = 0.01
-    horizon = 100
+    horizon = 200
     observation_noise = 1.0
 
     # load dynamics

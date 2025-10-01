@@ -20,8 +20,8 @@ def get_linked_pendulum_outcome(traj: Array):
     right_angle_from_bottom = jnp.abs(smooth_angle_wrap(traj[:, 1]))
 
     ## get final state
-    left_up = jnp.all(left_angle_from_bottom[-200:] >= 2.1)
-    right_up = jnp.all(right_angle_from_bottom[-200:] >= 2.1)
+    left_up = jnp.all(left_angle_from_bottom[-10:] >= 2.1)
+    right_up = jnp.all(right_angle_from_bottom[-10:] >= 2.1)
 
     neither_up = jnp.logical_and(jnp.logical_not(left_up), jnp.logical_not(right_up))
 
@@ -40,16 +40,14 @@ if __name__ == '__main__':
     xml_path = 'xml/custom/linked_pendulums.xml'
     dyn = Dynamics(path=xml_path)
     print(f'Timestep = {dyn.mjx_model.opt.timestep}')
+
+    horizon = 200
     
-    folder = Path('results/seed=10_horizon=120_alpha=0.01_observation_noise=1.0_stiffness=3.0')
+    folder = Path(f'results/no_contacts/seed=10_horizon={horizon}_alpha=0.01_observation_noise=1.0_stiffness=3.0')
 
-    alpha = 0.01
-    observation_noise = 1.0
-
-    horizon = 120
-    batches = 11
-    num_powers = 100 #30
-    powers = jnp.linspace(0.5, 3.0, 100)
+    batches = 100
+    num_powers = 100
+    powers = jnp.linspace(0.5, 3.0, num_powers)
     num_powers = powers.shape[0]
 
     outcomes = jnp.zeros((num_powers, num_powers))
@@ -57,7 +55,7 @@ if __name__ == '__main__':
 
     for batch in range(batches):
 
-        path = folder# / f'horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}'
+        path = folder
  
         pairs = jnp.load(path / f'pairs_batch_{batch}.npy')
         X = jnp.load(path / f'X_batch_{batch}.npy')
@@ -69,16 +67,5 @@ if __name__ == '__main__':
 
     collaboration_percentage = (outcomes == 3).sum() / (outcomes > 0).sum()
     print(horizon * dyn.mjx_model.opt.timestep, '\t', collaboration_percentage)
-
-    # print(pair_map[outcomes == 3])
-
-    # import jax
-    # p = jax.random.choice(
-    #     jax.random.PRNGKey(20), 
-    #     pair_map[outcomes == 1],
-    #     shape = (10,), 
-    #     replace = False
-    #     )
-    # print(p)
 
     plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = f'horizon={horizon}_outcome_heatmap.png')

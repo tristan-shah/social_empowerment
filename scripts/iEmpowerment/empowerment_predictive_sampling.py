@@ -1,3 +1,7 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ['MUJOCO_GL'] = 'egl'
+
 from pathlib import Path
 import jax
 from jax import numpy as jnp
@@ -114,9 +118,9 @@ works for single pendulum
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
 
-    horizon = 500 # 300 #200
-    N = 2000 #1000
-    knots = 250 #150 #100
+    horizon = 500
+    N = 10000
+    knots = 250
     sigma = 0.1
     power = 1.0
     steps = 3000

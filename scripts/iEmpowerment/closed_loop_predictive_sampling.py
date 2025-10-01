@@ -1,3 +1,7 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ['MUJOCO_GL'] = 'egl'
+
 import jax
 from jax import numpy as jnp
 from jax import Array
@@ -98,11 +102,11 @@ if __name__ == '__main__':
 
     x0 = jnp.zeros(dyn.state_dim)
 
-    horizon = 200
-    N = 1000
-    knots = 100
+    horizon = 500
+    N = 2000
+    knots = 250
     sigma = 0.1
-    steps = 3000
+    steps = 1500
 
     # opt = PredictiveSampling(dyn, compute_pendulum_error, horizon, N, knots, sigma, Q, R)
     opt = PredictiveSampling(dyn, compute_double_pendulum_error, horizon, N, knots, sigma, Q, R)
@@ -120,12 +124,13 @@ if __name__ == '__main__':
     for i in range(100):
         ax[0].plot(U, color = 'blue', alpha = 0.5)
         X, U, J = opt(x0, U, key)
+        print(i, J)
 
         cost_hist.append(J)
 
     ax[0].plot(U, color = 'red')
     ax[1].plot(cost_hist)
-    plt.show()
+    fig.savefig('warmup.png', dpi = 300)
 
     xt = x0.copy()
 
@@ -153,17 +158,15 @@ if __name__ == '__main__':
     ax.set_xlabel('Timestep')
     ax.set_ylabel('Cost')
     ax.plot(cost_hist)
-    fig.savefig('PS_gear=8.png', dpi = 300)
-    plt.show()
+    fig.savefig('PS_gear=4.png', dpi = 300)
 
-    fig, ax = plt.subplots(1, 1)
-    ax.set_title('Trajectory')
-    ax.set_xlabel('Theta')
-    ax.set_ylabel('Theta Dot')
-    ax.plot(X[:, 0], X[:, 1])
-    ax.scatter(X[0, 0], X[0, 1], color = 'green', label = 'Start')
-    ax.scatter(X[-1, 0], X[-1, 1], color = 'red', label = 'End')
-    ax.legend()
-    plt.show()
+    # fig, ax = plt.subplots(1, 1)
+    # ax.set_title('Trajectory')
+    # ax.set_xlabel('Theta')
+    # ax.set_ylabel('Theta Dot')
+    # ax.plot(X[:, 0], X[:, 1])
+    # ax.scatter(X[0, 0], X[0, 1], color = 'green', label = 'Start')
+    # ax.scatter(X[-1, 0], X[-1, 1], color = 'red', label = 'End')
+    # ax.legend()
 
-    dyn.render(X, path = 'PS_gear=8.mp4', distance = 5.0, skip = 2, lookat = jnp.array([0, 0, 2.2]))
+    dyn.render(X, path = 'PS_gear=4.mp4', distance = 5.0, skip = 2, lookat = jnp.array([0, 0, 2.2]))
