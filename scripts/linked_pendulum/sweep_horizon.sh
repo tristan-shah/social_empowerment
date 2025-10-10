@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=sweep_horizon          # Name of the job
+#SBATCH --job-name=horizon          # Name of the job
 #SBATCH --partition=h100          # Request the h100 partition
 #SBATCH --gres=gpu:4              # Request GPU
 #SBATCH --cpus-per-task=16
@@ -14,7 +14,4 @@ conda activate soc_emp
 export PYTHONUNBUFFERED=1  # Add this
 
 # Run your Python script
-# python scripts/linked_pendulum/sweep_horizon.py --power 1.0 --alpha 0.01 --observation_noise 1.0
-# python scripts/linked_pendulum/sweep_horizon.py --power 1.0 --alpha 0.01 --observation_noise 0.1
-# python scripts/linked_pendulum/sweep_horizon.py --power 1.0 --alpha 0.01 --observation_noise 0.01
-python scripts/linked_pendulum/sweep_horizon.py --power 1.0 --alpha 0.01 --observation_noise 0.001
+python scripts/linked_pendulum/sweep_horizon.py --power 1.1

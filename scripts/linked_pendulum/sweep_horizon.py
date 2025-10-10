@@ -149,8 +149,8 @@ if __name__ == '__main__':
     observation_noise = args.observation_noise
     stiffness = args.stiffness
     # horizons = jnp.arange(50, 205, 5)
-    # horizons = jnp.arange(50, 202, 2)
-    horizons = jnp.arange(100, 112, 2)
+    horizons = jnp.arange(50, 202, 2)
+    # horizons = jnp.arange(100, 112, 2)
 
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
