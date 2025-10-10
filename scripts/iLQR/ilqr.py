@@ -153,7 +153,7 @@ class iLQR:
 
         P_hist = jnp.flip(jnp.stack(P_hist))
 
-        return k, K, P_hist
+        return k, K#, P_hist
     
 def render_go(dyn: Dynamics, X: Array, path: str):
     
@@ -247,6 +247,13 @@ if __name__ == '__main__':
     # R = jnp.eye(dyn.control_dim) * control_penalty
     # ## repeating the nominal control sequence
     # U = jnp.tile(home.ctrl[None, :], (steps, 1))
+
+
+    # print(dyn.state_dim, dyn.control_dim)
+
+
+
+
 
     '''
     run iLQR

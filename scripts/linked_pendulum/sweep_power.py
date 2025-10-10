@@ -114,51 +114,6 @@ def plot_iteration_hetamap(heatmap: Array, horizon: int, powers: Array, path: st
     plt.close(fig)
     return
 
-# def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: float, observation_noise: float, steps: int, key):
-#     '''
-#     runs the multi agent empowerment controller where each agent selects an action proportional to the gradient
-#     of empowerment.
-#     '''
-
-#     ## obtain the initial zero state of the system
-#     xt = dyn.init_state()
-
-#     @jax.jit
-#     def _step_linked_pendulums(carry, _):
-#         _xt, _key = carry
-
-#         ## obtain control gain
-#         _, B = dyn.linearize(_xt, U[0])
-#         grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, power, alpha, observation_noise)
-
-#         # def _check_for_nan(grad_E, power):
-#         #     if jnp.any(jnp.isnan(grad_E)):
-#         #         # Print both grad_E and power so you know the conditions
-#         #         print('❌ NaN detected in grad_E!')
-#         #         print('grad_E:', grad_E)
-#         #         print('power:', power)
-#         #         raise ValueError('grad_E contains NaN!')
-
-#         # # inside your jitted function:
-#         # jax.debug.callback(_check_for_nan, grad_E, power)
-
-#         # ## compute action
-#         # ut = jnp.sign(jnp.diag(grad_E @ B)) * power
-
-#         # ## pick a random direction with max power if the action is zero
-#         sub_key, _key = jax.random.split(_key)
-#         # random_direction = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(ut.shape[0],))
-#         # ut = ut + (ut == 0) * power * random_direction
-#         ut = compute_multiagent_control(grad_E, B, power, sub_key)
-
-#         ## propagate dynamics
-#         _xt = dyn.step(_xt, ut)
-
-#         return ((_xt, _key), _xt)
-    
-#     _, X = jax.lax.scan(_step_linked_pendulums, (xt, key), length = steps)
-#     return jnp.concatenate([xt[None, :], X])
-
 def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: float, observation_noise: float, steps: int, key):
     '''
     Runs the multi-agent empowerment controller.
@@ -228,8 +183,6 @@ if __name__ == '__main__':
     horizon = args.horizon                  ## empowerment horizon
     observation_noise = args.observation_noise
     stiffness = args.stiffness
-    # num_powers = 30                         ## resolution of the sweep
-    # num_powers = 100                         ## resolution of the sweep
     num_powers = args.resolution
     powers = jnp.linspace(0.5, 3.0, num_powers)
     device_batch_size = args.batch_size

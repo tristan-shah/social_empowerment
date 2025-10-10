@@ -83,13 +83,13 @@ if __name__ == '__main__':
 
     ## system hyperparameters
     key = jax.random.key(4)
-    steps = 1500  ## interaction horizon
-    horizon = jnp.array([50, 50])
-    power = jnp.array([1.0, 1.0])
+    steps = 3000  ## interaction horizon
+    horizon = jnp.array([150, 130])
+    power = jnp.array([1.1, 1.1])
     alpha = 0.01
     observation_noise = 1.0
-    stiffness = 0.0
-    damping = 0.0
+    stiffness = 3.0
+    damping = 0.1
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -116,12 +116,14 @@ if __name__ == '__main__':
         ## obtain control gain
         _, B = dyn.linearize(xt, U[0])
         grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, horizon, power, alpha, observation_noise)
+        # grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, horizon, power * horizon, alpha, observation_noise)
 
-        sub_key, key = jax.random.split(key)
-        ut = compute_multiagent_control(grad_E, B, power, sub_key)
+        key, subkey = jax.random.split(key)
+        ut = compute_multiagent_control(grad_E, B, power, subkey)
 
         ## compute empowerment for plotting
         i, e, _ = compute_multiagent_empowerment(dyn, xt, U, horizon, power, alpha, observation_noise)
+        # i, e, _ = compute_multiagent_empowerment(dyn, xt, U, horizon, power * horizon, alpha, observation_noise)
 
         xt = dyn.step(xt, ut)
         X = X.at[t+1].set(xt)
@@ -130,7 +132,7 @@ if __name__ == '__main__':
         empowerment = empowerment.at[t].set(e)
         print(t, xt, ut, e, i)
 
-    run_name = f'iter={MAX_ITER}_horizon={horizon}_power={power}_alpha={alpha}_noise={observation_noise}_stiffness={stiffness}_damping={damping}'
+    run_name = f'disconnect_iter={MAX_ITER}_horizon={horizon}_power={power}_alpha={alpha}_noise={observation_noise}_stiffness={stiffness}_damping={damping}'
 
     dyn.render(X, path = run_name + '.mp4', skip = 3)
 
@@ -142,7 +144,7 @@ if __name__ == '__main__':
     ax[0].tick_params(axis = 'both', labelsize = 12)
     ax[0].legend(fontsize = 12)
     ax[0].set_xticks([])
-    ax[0].set_xlim(0, 1500)
+    ax[0].set_xlim(0, steps)
 
     ## plot angle from top
     agent_0_angle = jnp.abs(smooth_angle_wrap(X[:, 0] - jnp.pi))
@@ -151,12 +153,12 @@ if __name__ == '__main__':
     ax[1].plot(agent_1_angle, color = 'orange')
     ax[1].set_ylabel('Angle From Top', fontsize = 14)
     ax[1].tick_params(axis = 'both', labelsize = 12)
-    ax[1].set_xlim(0, 1500)
+    ax[1].set_xlim(0, steps)
     ax[1].set_xlabel('Interaction Time (s)', fontsize = 14)
 
     n_ticks = 5
     positions = np.linspace(0, empowerment.shape[0] - 1, n_ticks)
-    labels = np.linspace(0.0, 15.0, n_ticks)
+    labels = np.linspace(0.0, steps * dt, n_ticks)
 
     ax[1].set_xticks(positions)
     ax[1].set_xticklabels(labels, rotation = 'horizontal')
