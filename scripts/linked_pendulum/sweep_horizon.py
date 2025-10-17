@@ -55,22 +55,30 @@ def plot_outcome_hetamap(m: Array, power: float, horizons: Array, dt: float, pat
     # Convert powers to numpy and determine tick spacing
     horizons_np = np.array(horizons) * dt
     full_tick_positions = np.arange(len(horizons))
-    tick_spacing = 4  # show every 4th tick (adjust as needed)
+    ## show every nth tick
+    tick_spacing = 10
 
     # Select every nth tick
     sparse_tick_positions = full_tick_positions[::tick_spacing]
-    sparse_tick_labels = np.round(horizons_np[::tick_spacing], 2)
+    sparse_tick_labels = [f'{x:.2f}' for x in horizons_np[::tick_spacing]]
 
     # Set sparse ticks and labels
     ax.set_xticks(sparse_tick_positions)
-    ax.set_xticklabels(sparse_tick_labels, rotation=90)
+    ax.set_xticklabels(sparse_tick_labels, rotation = 90)
     ax.set_yticks(sparse_tick_positions)
     ax.set_yticklabels(sparse_tick_labels)
 
     ax.set_xlabel('Right Agent Horizon (s)')
     ax.set_ylabel('Left Agent Horizon (s)')
-    ax.set_title(f'Fixed Power = {power}')
-
+    
+    assert power[0] == power[1]
+    ax.set_title(
+        f'Power Density Per Agent = {power[0]} (N·m)\nProbing Variance = Power Density × Horizon',
+        fontsize = 12,
+        loc = 'center',
+        pad = 10
+    )
+    
     # Add colorbar with custom ticks/labels
     cbar = plt.colorbar(img, ax = ax, ticks=[0, 1, 2, 3])
     cbar.ax.set_yticklabels(labels)
@@ -102,7 +110,7 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, horizon: Array, power: A
 
         ## obtain control gain
         _, B = dyn.linearize(_xt, U[0])
-        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power, alpha, observation_noise)
+        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power * horizon, alpha, observation_noise)
 
         # split key for randomness in control
         sub_key, _key = jax.random.split(_key)
@@ -144,13 +152,11 @@ if __name__ == '__main__':
     seed = args.seed
     key = jax.random.key(seed)
     steps = 1500                                ## simulation horizon
-    power = jnp.array([args.power, args.power])
+    power = jnp.array([args.power, args.power]) ## power density
     alpha = args.alpha                          ## smoothing for synchronous IWF
     observation_noise = args.observation_noise
     stiffness = args.stiffness
-    # horizons = jnp.arange(50, 205, 5)
-    horizons = jnp.arange(50, 202, 2)
-    # horizons = jnp.arange(100, 112, 2)
+    horizons = jnp.arange(50, 202, 2)           ## empowerment (planning) horizon
 
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
@@ -158,7 +164,7 @@ if __name__ == '__main__':
     max_horizon = max(horizons)
     num_horizons = len(horizons)
 
-    output_dir = Path(f'results/sweep_horizon/power={power}_alpha={alpha}_observation_noise={observation_noise}')
+    output_dir = Path(f'results/sweep_horizon_interatction_time={steps}/power_times_horizon/power={power}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
@@ -260,9 +266,6 @@ if __name__ == '__main__':
         batch_X = pmap_batch_run_multiagent_empowerment(dyn, U, batch_pairs, alpha, batch_keys)
         batch_time = time.time() - batch_start
 
-
-        print(batch_X)
-        print(batch_X.shape)
 
         batch_X = batch_X.reshape(effective_batch_size, steps + 1, dyn.state_dim)
         ## evaluate the outcome of each simulation in the batch
