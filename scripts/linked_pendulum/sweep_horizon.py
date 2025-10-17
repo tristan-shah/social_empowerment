@@ -110,10 +110,16 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, horizon: Array, power: A
 
         ## obtain control gain
         _, B = dyn.linearize(_xt, U[0])
-        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power * horizon, alpha, observation_noise)
 
         # split key for randomness in control
         sub_key, _key = jax.random.split(_key)
+
+        ## power over horizon
+        # grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power, alpha, observation_noise)
+        # ut = compute_multiagent_control(grad_E, B, power / horizon, sub_key)
+
+        ## power times horizon
+        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power * horizon, alpha, observation_noise) 
         ut = compute_multiagent_control(grad_E, B, power, sub_key)
 
         ## propagate dynamics
@@ -135,6 +141,7 @@ batch_get_linked_pendulum_outcome = jax.vmap(get_linked_pendulum_outcome)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
+    parser.add_argument('--steps', type = int, default = 1500)
     parser.add_argument('--power', type = float, default = 1.0)
     parser.add_argument('--alpha', type = float, default = 0.01)
     parser.add_argument('--observation_noise', type = float, default = 1.0)
@@ -142,29 +149,39 @@ if __name__ == '__main__':
     parser.add_argument('--stiffness', type = float, default = 3.0)
     parser.add_argument('--seed', type = int, default = 0)
     args = parser.parse_args()
-    print(f'GPU devices: {jax.devices()}')
-    print(f'Power = {args.power}')
-    print(f'Alpha = {args.alpha}')
-    print(f'Noise = {args.observation_noise}')
-    print(f'Batch Size = {args.batch_size}')
 
     ## Hyperparams
     seed = args.seed
     key = jax.random.key(seed)
-    steps = 1500                                ## simulation horizon
+    steps = args.steps                          ## simulation horizon
     power = jnp.array([args.power, args.power]) ## power density
     alpha = args.alpha                          ## smoothing for synchronous IWF
     observation_noise = args.observation_noise
     stiffness = args.stiffness
     horizons = jnp.arange(50, 202, 2)           ## empowerment (planning) horizon
-
-    device_batch_size = args.batch_size
-    num_devices = jax.device_count()
-
     max_horizon = max(horizons)
     num_horizons = len(horizons)
+    device_batch_size = args.batch_size
+    num_devices = jax.device_count()
+    
+    ## Load dynamics
+    xml_path = 'xml/custom/linked_pendulums.xml'
+    dyn = Dynamics(path = xml_path)
+    dt = dyn.mjx_model.opt.timestep
 
-    output_dir = Path(f'results/sweep_horizon_interatction_time={steps}/power_times_horizon/power={power}_alpha={alpha}_observation_noise={observation_noise}')
+    ## print message in log
+    print(f'GPU devices: {jax.devices()}')
+    print(f'Simulation Steps = {steps}')
+    print(f'Power = {args.power}')
+    print(f'Alpha = {args.alpha}')
+    print(f'Noise = {args.observation_noise}')
+    print(f'Batch Size = {args.batch_size}')
+    print(f'Timestep = {dt}')
+    print(f'Horizon = {max_horizon}')
+    print(f'Stiffness = {stiffness}')
+
+    ## create directory for saving results
+    output_dir = Path(f'results/sweep_horizon_interatction_time={steps}/power_times_horizon/power={args.power}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
@@ -184,19 +201,10 @@ if __name__ == '__main__':
         static_broadcasted_argnums = 0
     )
 
-    ## Load dynamics
-    xml_path = 'xml/custom/linked_pendulums.xml'
-    dyn = Dynamics(path = xml_path)
-    dt = dyn.mjx_model.opt.timestep
-
     ## overriding the stiffness of the tendon(s)
     dyn.mjx_model = dyn.mjx_model.replace(
         tendon_stiffness = dyn.mjx_model.tendon_stiffness.at[:].set(stiffness)
     )
-
-    print(f'Timestep = {dt}')
-    print(f'Horizon = {max_horizon}')
-    print(f'Stiffness = {stiffness}')
 
     # ## create zero control sequence
     U = jnp.zeros((max_horizon, dyn.control_dim))
@@ -224,7 +232,6 @@ if __name__ == '__main__':
         batch_pairs_reshaped with size: (devices x device_batch_size x 2)
         batch_keys_reshaped with size: (devices x device_batch_size)
         '''
-
         ## the actual effective batch size might be smaller than the effective batch size
         actual_effective_batch_size = end_idx - start_idx
         batch_pairs = pairs[start_idx:end_idx]
@@ -234,7 +241,7 @@ if __name__ == '__main__':
         if actual_effective_batch_size < effective_batch_size:
             pad_size = effective_batch_size - actual_effective_batch_size
 
-            ## ⚠️ split from a fresh subkey so padding randomness is also unique
+            ## split from a fresh subkey so padding randomness is also unique
             _, pad_subkey = jax.random.split(key)
             batch_pairs = jnp.vstack([batch_pairs, 10 * jnp.ones((pad_size, 2))])
             batch_keys = jnp.concatenate([batch_keys, jax.random.split(pad_subkey, pad_size)])
@@ -266,7 +273,6 @@ if __name__ == '__main__':
         batch_X = pmap_batch_run_multiagent_empowerment(dyn, U, batch_pairs, alpha, batch_keys)
         batch_time = time.time() - batch_start
 
-
         batch_X = batch_X.reshape(effective_batch_size, steps + 1, dyn.state_dim)
         ## evaluate the outcome of each simulation in the batch
         batch_outcomes = batch_get_linked_pendulum_outcome(batch_X)
@@ -283,8 +289,8 @@ if __name__ == '__main__':
         jnp.save(output_dir / f'pairs_batch_{batch_idx}.npy', batch_pairs)
         print(f'Batch {batch_idx + 1}/{num_batches} ({end_idx}/{num_pairs} simulations) took {batch_time:.2f} seconds, saved X, outcomes, and pairs')
 
+        ## plot intermediate heatmap
         plot_outcome_hetamap(outcomes, power, horizons, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
-        print(f'Completed sweep at {time.ctime()}, total time {time.time() - start_time:.2f} seconds')
 
     ## save final outcomes and powers
     jnp.save(output_dir / 'outcomes.npy', outcomes)
