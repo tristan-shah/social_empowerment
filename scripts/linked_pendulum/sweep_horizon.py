@@ -78,6 +78,14 @@ def plot_outcome_hetamap(m: Array, power: float, horizons: Array, dt: float, pat
         loc = 'center',
         pad = 10
     )
+
+    # assert power[0] == power[1]
+    # ax.set_title(
+    #     f'Power Density Per Agent = Budget / Horizon \nBudget = {power[0]} = Probing Variance',
+    #     fontsize = 12,
+    #     loc = 'center',
+    #     pad = 10
+    # )
     
     # Add colorbar with custom ticks/labels
     cbar = plt.colorbar(img, ax = ax, ticks=[0, 1, 2, 3])
@@ -181,6 +189,7 @@ if __name__ == '__main__':
     print(f'Stiffness = {stiffness}')
 
     ## create directory for saving results
+    # output_dir = Path(f'results/sweep_horizon_interatction_time={steps}/power_over_horizon/power={args.power}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir = Path(f'results/sweep_horizon_interatction_time={steps}/power_times_horizon/power={args.power}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 

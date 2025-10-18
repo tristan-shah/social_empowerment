@@ -41,7 +41,7 @@ if __name__ == '__main__':
     dyn = Dynamics(path=xml_path)
     print(f'Timestep = {dyn.mjx_model.opt.timestep}')
 
-    power = 2.0
+    power = 1.9
     power = jnp.array([power, power])
     # name = 'power_over_horizon'
     name = 'power_times_horizon'
