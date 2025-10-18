@@ -71,21 +71,21 @@ def plot_outcome_hetamap(m: Array, power: float, horizons: Array, dt: float, pat
     ax.set_xlabel('Right Agent Horizon (s)')
     ax.set_ylabel('Left Agent Horizon (s)')
     
-    assert power[0] == power[1]
-    ax.set_title(
-        f'Power Density Per Agent = {power[0]} (N·m)\nProbing Variance = Power Density × Horizon',
-        fontsize = 12,
-        loc = 'center',
-        pad = 10
-    )
-
     # assert power[0] == power[1]
     # ax.set_title(
-    #     f'Power Density Per Agent = Budget / Horizon \nBudget = {power[0]} = Probing Variance',
+    #     f'Power Density Per Agent = {power[0]} (N·m)\nProbing Variance = Power Density × Horizon',
     #     fontsize = 12,
     #     loc = 'center',
     #     pad = 10
     # )
+
+    assert power[0] == power[1]
+    ax.set_title(
+        f'Power Density Per Agent = Budget / Horizon \nBudget = {power[0]} = Probing Variance',
+        fontsize = 12,
+        loc = 'center',
+        pad = 10
+    )
     
     # Add colorbar with custom ticks/labels
     cbar = plt.colorbar(img, ax = ax, ticks=[0, 1, 2, 3])
@@ -123,12 +123,12 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, horizon: Array, power: A
         sub_key, _key = jax.random.split(_key)
 
         ## power over horizon
-        # grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power, alpha, observation_noise)
-        # ut = compute_multiagent_control(grad_E, B, power / horizon, sub_key)
+        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power, alpha, observation_noise)
+        ut = compute_multiagent_control(grad_E, B, power / horizon, sub_key)
 
         ## power times horizon
-        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power * horizon, alpha, observation_noise) 
-        ut = compute_multiagent_control(grad_E, B, power, sub_key)
+        # grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, horizon, power * horizon, alpha, observation_noise) 
+        # ut = compute_multiagent_control(grad_E, B, power, sub_key)
 
         ## propagate dynamics
         _xt = dyn.step(_xt, ut)
@@ -189,8 +189,8 @@ if __name__ == '__main__':
     print(f'Stiffness = {stiffness}')
 
     ## create directory for saving results
-    # output_dir = Path(f'results/sweep_horizon_interatction_time={steps}/power_over_horizon/power={args.power}_alpha={alpha}_observation_noise={observation_noise}')
-    output_dir = Path(f'results/sweep_horizon_interatction_time={steps}/power_times_horizon/power={args.power}_alpha={alpha}_observation_noise={observation_noise}')
+    output_dir = Path(f'results/sweep_horizon_interatction_time={steps}/power_over_horizon/power={args.power}_alpha={alpha}_observation_noise={observation_noise}')
+    # output_dir = Path(f'results/sweep_horizon_interatction_time={steps}/power_times_horizon/power={args.power}_alpha={alpha}_observation_noise={observation_noise}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
