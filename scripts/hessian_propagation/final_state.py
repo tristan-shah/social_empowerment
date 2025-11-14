@@ -14,6 +14,7 @@ if __name__ == '__main__':
     # dyn = Dynamics(path = 'xml/custom/pendulum.xml')
 
     x0 = jnp.array([jnp.pi - 0.001, jnp.pi, 0.0, 0.0])
+    # x0 = jnp.array([3.14, 0.0])
     U_bar = jnp.zeros((steps, dyn.control_dim))
 
     ## linearize around zero control
@@ -67,7 +68,6 @@ if __name__ == '__main__':
     ax[0, 0].plot(u0[:, 0], xT_true[:, 0], label = 'True')
     ax[0, 0].plot(u0[:, 0], xT_quadratic[:, 0], label = 'Quadratic')
     ax[0, 0].set_ylim(-10.0, 10.0)
-    # ax[0].legend()
 
     ax[0, 1].set_title('Right Pendulum')
     ax[0, 1].set_xlabel(r'Control $u_0$')
@@ -75,7 +75,6 @@ if __name__ == '__main__':
     ax[0, 1].plot(u0[:, 0], xT_true[:, 1])
     ax[0, 1].plot(u0[:, 0], xT_quadratic[:, 1])
     ax[0, 1].set_ylim(-10.0, 10.0)
-    # ax[1].legend()
 
     ax[1, 0].set_title('Left Pendulum')
     ax[1, 0].set_xlabel(r'Control $u_0$')
@@ -83,7 +82,6 @@ if __name__ == '__main__':
     ax[1, 0].plot(u0[:, 0], xT_true[:, 2])
     ax[1, 0].plot(u0[:, 0], xT_quadratic[:, 2])
     ax[1, 0].set_ylim(-10.0, 10.0)
-    # ax[2].legend()
 
     ax[1, 1].set_title('Right Pendulum')
     ax[1, 1].set_xlabel(r'Control $u_0$')
@@ -91,7 +89,6 @@ if __name__ == '__main__':
     ax[1, 1].plot(u0[:, 0], xT_true[:, 3])
     ax[1, 1].plot(u0[:, 0], xT_quadratic[:, 3])
     ax[1, 1].set_ylim(-10.0, 10.0)
-    # ax[3].legend()
 
     fig.legend()
     fig.tight_layout()

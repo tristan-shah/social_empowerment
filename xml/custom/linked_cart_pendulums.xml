@@ -1,4 +1,4 @@
-<mujoco model="cart-pendulums">
+<mujoco model="linked-cart-pendulums">
 
     <compiler angle="radian"/>
     <option integrator="implicitfast" timestep="0.01" gravity="0 0 -9.81"/>
@@ -51,13 +51,13 @@
 
     <tendon>
         <!-- spring keeping cart:0 near its anchor -->
-        <spatial name="cart_spring_0" stiffness="1.0" damping="0.1" springlength="0" rgba="0 1 0 0.5" width="0.003">
+        <spatial name="cart_spring_0" stiffness="15000.0" damping="500.0" springlength="0" rgba="0 1 0 0.5" width="0.003">
             <site site="anchor:0"/>
             <site site="cart_site:0"/>
         </spatial>
 
         <!-- spring keeping cart:1 near its anchor -->
-        <spatial name="cart_spring_1" stiffness="1.0" damping="1.0" springlength="0" rgba="0 1 0 0.5" width="0.003">
+        <spatial name="cart_spring_1" stiffness="15000.0" damping="500.0" springlength="0" rgba="0 1 0 0.5" width="0.003">
             <site site="anchor:1"/>
             <site site="cart_site:1"/>
         </spatial>
@@ -70,9 +70,7 @@
     </tendon>
 
     <actuator>
-        <motor joint="hinge:0" gear="1" ctrlrange="-1 1"/>
-        <motor joint="hinge:1" gear="1" ctrlrange="-1 1"/>
-        <motor joint="slide:0" gear="1" ctrlrange="-1 1"/>
-        <motor joint="slide:1" gear="1" ctrlrange="-1 1"/>
+        <motor joint="hinge:0" gear="2" ctrlrange="-1 1"/>
+        <motor joint="hinge:1" gear="2" ctrlrange="-1 1"/>
     </actuator>
 </mujoco>

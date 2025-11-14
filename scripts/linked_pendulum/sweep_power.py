@@ -135,7 +135,13 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: flo
 
         ## obtain control gain
         _, B = dyn.linearize(_xt, U[0])
-        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, power, alpha, observation_noise)
+
+
+        ## change only here
+        ## measure empowerment gradient with probing power equal to power
+        # grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, power, alpha, observation_noise)
+        ## measure empowerment gradient with probing power equal to power * horizon
+        grad_E = compute_multiagent_empowerment_grad(dyn, _xt, U, power * U.shape[0], alpha, observation_noise)
 
         # split key for randomness in control
         sub_key, _key = jax.random.split(_key)
@@ -188,7 +194,8 @@ if __name__ == '__main__':
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
 
-    output_dir = Path(f'results/random_initial_action/resolution={num_powers}_seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
+    # output_dir = Path(f'results/random_initial_action/resolution={num_powers}_seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
+    output_dir = Path(f'results/sweep_power_times_horizon/resolution={num_powers}_seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 

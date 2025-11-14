@@ -15,17 +15,12 @@ if __name__ == '__main__':
     key = jax.random.key(seed)
     steps = 1500  ## simulation horizon
     alpha = 0.01
-    horizon = 200
+    horizon = 100
     observation_noise = 1.0
     stiffness = 3.0
     damping = 0.1
 
-    # power = jnp.array([1.81, 2.32])
-    # power = jnp.array([2.32, 1.81])
-
-    # power = jnp.array([1.31, 1.71])
-    # power = jnp.array([1.71, 1.31])
-    power = jnp.array([1.01, 2.02])
+    power = jnp.array([2.01, 2.10])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -35,7 +30,7 @@ if __name__ == '__main__':
     ## setting the properties of the tendon
     dyn.mjx_model = dyn.mjx_model.replace(
         tendon_stiffness = dyn.mjx_model.tendon_stiffness.at[:].set(stiffness),
-        # tendon_damping = dyn.mjx_model.tendon_damping.at[:].set(damping)
+        tendon_damping = dyn.mjx_model.tendon_damping.at[:].set(damping)
     )
 
     print(f'Timestep = {dt}')
@@ -43,9 +38,11 @@ if __name__ == '__main__':
 
     ## planning horizon should be the maximum of all agent's horizons
     U = jnp.zeros((horizon, dyn.control_dim))
-    
+
+    ## initial state of pendula (all zeros)
     xt = dyn.init_state()
 
+    
     X = jnp.zeros((steps+1, dyn.state_dim))
     X = X.at[0].set(xt)
 
@@ -55,21 +52,30 @@ if __name__ == '__main__':
     assert steps == empowerment.shape[0]
     
     for t in range(steps):
-        ## obtain control gain
-        _, B = dyn.linearize(xt, U[0])
-        grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power, alpha, observation_noise)
-        print(grad_E)
-
         key, sub_key = jax.random.split(key)
-        ut = compute_multiagent_control(grad_E, B, power, key)
 
-        i, e, _ = compute_multiagent_empowerment(dyn, xt, U, power, alpha, observation_noise)
+        ## measure empowerment and its gradient
+        grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power * horizon, alpha, observation_noise)
+        i, e, _ = compute_multiagent_empowerment(dyn, xt, U, power * horizon, alpha, observation_noise)
 
+        ## log the number of IWF iterations and empowerment
+        iterations = iterations.at[t].set(i)
+        empowerment = empowerment.at[t].set(e)
+
+        if t == 0:
+            ## choose a random action on the first step
+            random_signs = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(dyn.control_dim,))
+            ut = power * random_signs
+        else:
+            ## choose an empowerment maximizing action
+            _, B = dyn.linearize(xt, U[0])
+            ut = compute_multiagent_control(grad_E, B, power, key)
+
+        ## step the dynamics and record the result
         xt = dyn.step(xt, ut)
         X = X.at[t+1].set(xt)
 
-        iterations = iterations.at[t].set(i)
-        empowerment = empowerment.at[t].set(e)
+        ## print out some relevant quantities
         print(t, xt, ut, e, i)
 
     run_name = f'seed={seed}_horizon={horizon}_power={power}_alpha={alpha}_noise={observation_noise}'

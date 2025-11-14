@@ -82,7 +82,7 @@ class iEmpowerment:
         horizon = Hxx.shape[0]
         
         ## how much to regularize the inverse term
-        damping = jnp.eye(du) * 1e-7
+        damping = jnp.eye(du) * 1e-3
         ## storing the total sensitivity of the final state to an intial perturbation
         J = jnp.eye(dx)
         ## initial value of the riccati equation solution
@@ -188,7 +188,7 @@ class iEmpowerment:
 
 if __name__ == '__main__':
     key = jax.random.PRNGKey(0)
-    horizon = 600
+    horizon = 100
     power = 1.0
     steps = 1500
     # alpha = 0.5
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     # B = jax.random.normal(key, (horizon, dx, du))
 
     F = rearrange(compute_F_from_A_B(A, B), 't x u -> x (t u)')
-    sigma = compute_sigma(F, power)
+    sigma = compute_sigma(F, power * horizon)
     sigma = jnp.diag(sigma)
     sigma = sigma[:, None, None]
     ## compute instantanious hessians along the nominal trajectory
@@ -236,7 +236,7 @@ if __name__ == '__main__':
 
     empowerment_hist = []
 
-    for i in range(30):
+    for i in range(100):
         
         k, K = iemp.backward(Hxx, Hxu, Hux, Huu, A, B, sigma)
         X, U = iemp.forward(X, U, k, K, alpha)
@@ -255,7 +255,7 @@ if __name__ == '__main__':
 
         (Hxx, Hxu), (Hux, Huu) = compute_hessians(X[:-1], U)
 
-        dyn.render(X, path = f'iteration={i}.mp4', skip = 2)
+        # dyn.render(X, path = f'iteration={i}.mp4', skip = 2)
 
         fig, ax = plt.subplots(1, 5, figsize = (15, 5))
 

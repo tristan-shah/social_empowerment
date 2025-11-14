@@ -1,12 +1,9 @@
 import jax
-from jax import Array
 from jax import numpy as jnp
-import numpy as np
 import matplotlib.pyplot as plt
 
 from soc_emp import Dynamics
-from soc_emp.empowerment import compute_multiagent_empowerment, compute_multiagent_empowerment_grad, compute_multiagent_control, unroll
-from soc_emp.utils import smooth_angle_wrap
+from soc_emp.empowerment import compute_empowerment_grad, compute_empowerment
 
 '''
 To recover a near-rigid scenario we must set the anchor spring stiffness to around (15000.0) and the damping to around (500.0).
@@ -19,8 +16,8 @@ if __name__ == '__main__':
     seed = 8
     key = jax.random.key(seed)
     steps = 1500  ## simulation horizon
-    horizon = 150 #200
-    power = 5.0
+    horizon = 150
+    power = 1.0
 
     # load dynamics
     xml_path = 'xml/custom/linked_cart_pendulums.xml'
@@ -32,9 +29,6 @@ if __name__ == '__main__':
     U = jnp.zeros((horizon, dyn.control_dim))
     
     xt = dyn.init_state()
-    # xt = xt.at[1].set(1.0)
-
-    from soc_emp.empowerment import compute_empowerment_grad, compute_empowerment
 
     ## tensor for state storage
     X = jnp.zeros((steps + 1, dyn.state_dim))
