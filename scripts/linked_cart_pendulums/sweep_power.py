@@ -198,7 +198,7 @@ if __name__ == '__main__':
     seed = args.seed
     # key = jax.random.key(5)
     key = jax.random.key(seed)
-    steps = 1500                            ## simulation horizon
+    steps = 3000                            ## simulation horizon
     alpha = args.alpha                      ## smoothing for synchronous IWF
     horizon = args.horizon                  ## empowerment horizon
     observation_noise = args.observation_noise
