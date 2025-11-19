@@ -70,7 +70,7 @@
     </tendon>
 
     <actuator>
-        <motor joint="hinge:0" gear="2" ctrlrange="-1 1"/>
-        <motor joint="hinge:1" gear="2" ctrlrange="-1 1"/>
+        <motor joint="hinge:0" gear="1"/>
+        <motor joint="hinge:1" gear="1"/>
     </actuator>
 </mujoco>

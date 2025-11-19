@@ -318,12 +318,14 @@ def compute_multiagent_empowerment(
         F_agent[1, [1, 3], :]
         ], axis = 0)
     
-    ## "direct indexing" produces some unintuitive slices when indexes are seperated by ":"
-    ## THIS CODE WILL PRODUCE INCORRECT RESULTS. IM LEAVING IT HERE AS AN EXAMPLE OF WHAT NOT TO DO.
-    # F_noise = jnp.stack([
-    #     F_noise[0, :, [0, 2], :],
-    #     F_noise[1, :, [1, 3], :]
-    # ], axis = 0)
+    '''
+    "direct indexing" produces some unintuitive slices when indexes are seperated by ":"
+    THIS CODE WILL PRODUCE INCORRECT RESULTS. IM LEAVING IT HERE AS AN EXAMPLE OF WHAT NOT TO DO.
+    F_noise = jnp.stack([
+        F_noise[0, :, [0, 2], :],
+        F_noise[1, :, [1, 3], :]
+    ], axis = 0)
+    '''
 
     ## chained indexing allows to select the correct submatrices
     F_noise = jnp.stack([
