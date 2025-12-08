@@ -13,14 +13,14 @@ if __name__ == '__main__':
     ## hyperparams
     seed = 12312
     key = jax.random.key(seed)
-    steps = 1500  ## simulation horizon
+    steps = 3000  ## simulation horizon
     alpha = 0.01
-    horizon = 100
+    horizon = 50
     observation_noise = 1.0
     stiffness = 3.0
     damping = 0.1
 
-    power = jnp.array([2.01, 2.10])
+    power = jnp.array([1.2, 1.6])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'

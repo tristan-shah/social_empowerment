@@ -11,7 +11,7 @@ if __name__ == '__main__':
     xml_path = 'xml/custom/pendulum.xml'
     dyn = Dynamics(path = xml_path, dt = 0.01)
 
-    T = 30
+    T = 50
     P = 1.0
 
     U = jnp.zeros((T, dyn.control_dim))
@@ -27,12 +27,12 @@ if __name__ == '__main__':
         for j in range(len(theta_dot)):
             x0 = jnp.array([theta[i], theta_dot[j]])
 
-            grad_e = compute_empowerment_grad(dyn, x0, U, P)
-            grad_E = grad_E.at[i, j].set(grad_e)
+            # grad_e = compute_empowerment_grad(dyn, x0, U, P)
+            # grad_E = grad_E.at[i, j].set(grad_e)
 
             e = compute_empowerment(dyn, x0, U, P)
             empowerment_landscape = empowerment_landscape.at[i, j].set(e)
-            print(i, j, e, grad_e)
+            print(i, j, e)
 
 
     Theta, Theta_dot = jnp.meshgrid(theta, theta_dot, indexing = 'ij')
@@ -67,17 +67,17 @@ if __name__ == '__main__':
             )
         )
 
-    ## Gradient field (vector field)
-    ax.quiver(
-        Theta,
-        Theta_dot,
-        grad_theta,
-        grad_theta_dot,
-        color ='white',
-        pivot = 'middle',
-        alpha = 0.9,
-        scale = 10,
-        width = 0.003
-    )
+    # ## Gradient field (vector field)
+    # ax.quiver(
+    #     Theta,
+    #     Theta_dot,
+    #     grad_theta,
+    #     grad_theta_dot,
+    #     color ='white',
+    #     pivot = 'middle',
+    #     alpha = 0.9,
+    #     scale = 10,
+    #     width = 0.003
+    # )
     
     plt.show()

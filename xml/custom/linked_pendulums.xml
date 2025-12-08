@@ -36,7 +36,7 @@
         <!-- <body name="pendulum:1" pos="0.5 0 1.2"> -->
         <body name="pendulum:1" pos="1.1 0 1.2">
             <!-- Hinge joint rotates around y-axis -->
-            <joint name="hinge:1" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0.1"/>
+            <joint name="hinge:1" type="hinge" axis="0 -1 0" pos="0 0 0" limited="false" damping="0.1"/>
 
             <!-- Rod of the pendulum -->
             <geom name="rod:1" type="capsule" fromto="0 0 0 0 0 -1" size="0.02" mass="1" contype="0" conaffinity="0"/>
