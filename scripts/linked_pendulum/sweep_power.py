@@ -329,6 +329,8 @@ if __name__ == '__main__':
         print()
         print(f'Batch {batch_idx + 1}/{num_batches} ({end_idx}/{num_pairs} simulations) took {batch_time:.2f} seconds, saved X, outcomes, and pairs')
 
+        plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = output_dir / 'outcome_heatmap.png')
+
     ## save final outcomes and powers
     jnp.save(output_dir / 'outcomes.npy', outcomes)
     jnp.save(output_dir / 'powers.npy', powers)
