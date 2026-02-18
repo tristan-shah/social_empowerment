@@ -4,6 +4,7 @@ jax.config.update('jax_traceback_filtering', 'off')
 
 from jax import Array
 from jax import numpy as jnp
+from einops import einsum
 
 import matplotlib.pyplot as plt
 
@@ -94,11 +95,17 @@ def make_compute_empowerment(step: callable, U: Array, power: Array, alpha: floa
         ], axis = 0)
 
         # 5. Water-filling
-        i, e, S_out = iterative_waterfilling(F_agent, F_noise, S, S_z, power * h, alpha)
+        # i, e, S_out = iterative_waterfilling(F_agent, F_noise, S, S_z, power, alpha)
+
+        ## coarse empowerment approximation
+        cov = einsum(F_agent, F_agent, 'a x1 t, a x2 t -> a x1 x2')
+        h2 = jnp.linalg.eigvalsh(cov)
+        e = 0.5 * jnp.log(1.0 + power * jnp.max(h2, axis = -1))
+
         return e
     
-    # return jax.jit(compute_empowerment)
-    return compute_empowerment
+    return jax.jit(compute_empowerment)
+    # return compute_empowerment
 
 @jax.jit
 def step(xt: Array, ut: Array, k: Array):
@@ -120,7 +127,7 @@ if __name__ == '__main__':
     seed = 0
     key = jax.random.key(seed)
     alpha = 0.01
-    max_horizon = 300
+    max_horizon = 200
     observation_noise = 1.0
     power = jnp.array([1.0, 1.0])
     k = jnp.array([0.0])
@@ -129,38 +136,50 @@ if __name__ == '__main__':
     xml_path = 'xml/custom/linked_pendulums.xml'
     dyn = Dynamics(path = xml_path)
     dt = dyn.mjx_model.opt.timestep
+    ## turn off damping
+    dyn.mjx_model = dyn.mjx_model.replace(tendon_damping = jnp.array([0.0]))
+    dyn.mjx_model = dyn.mjx_model.replace(dof_damping = jnp.array([0.0, 0.0]))
+
     U = jnp.zeros((max_horizon, dyn.control_dim))
 
-    # ## tilted away from one another
-    # agent_1_angle = jnp.pi - 0.1
-    # agent_2_angle = jnp.pi - 0.1
+    step = make_step(dyn)
+    unroll = make_unroll(step, U)
 
-    ## exactly at top
-    agent_1_angle = jnp.pi
-    agent_2_angle = jnp.pi
+    # agent_1_angle = jnp.pi
+    # agent_2_angle = jnp.pi
+
+    ## tilted away from one another
+    agent_1_angle = jnp.pi - 0.01
+    agent_2_angle = jnp.pi - 0.01
+
+    # ## tilted toward one another
+    # agent_1_angle = jnp.pi + 0.01
+    # agent_2_angle = jnp.pi + 0.01
+
+    # agent_1_angle = 1.0
+    # agent_2_angle = -1.0
 
     xt = dyn.init_state()
     xt = xt.at[0].set(agent_1_angle)
     xt = xt.at[1].set(agent_2_angle)
+    
+    # X = unroll(xt, k)
+    # print(X)
+    # dyn.render(X, path = 'test.mp4')
 
-    step = make_step(dyn)
+
     compute_empowerment = make_compute_empowerment(step, U, power, alpha, observation_noise)
-    de_dk = jax.jacfwd(compute_empowerment, argnums = 2)
-    # print(de_dk(xt, 10, k))
-    # print(compute_empowerment(xt, 10, k))
-
-    # ## compute empowerment for each horizon
     horizons = jnp.arange(50, max_horizon + 1)
-    # e = jax.vmap(compute_empowerment, in_axes = (None, 0, None))(xt, horizons, k)
     de_dk = jax.vmap(jax.jacfwd(compute_empowerment, argnums = 2), in_axes = (None, 0, None))(xt, horizons, k)
     print(de_dk)
 
     fig, ax = plt.subplots(1, 1)
-    ax.set_xlabel('Horizon (s)')
-    ax.set_ylabel('Gradient of Empowerment w.r.t Zero Spring Constant')
+    fig.suptitle(f'Gradient of Empowerment w.r.t Spring Stiffness \n Agent 1 Angle = {round(agent_1_angle, 3)}, Agent 2 Angle = {-round(agent_2_angle, 3)}')
+    ax.set_xlabel('Empowerment Horizon (s)')
+    ax.set_ylabel('Gradient of Empowerment w.r.t Spring Stiffness')
     ax.plot(horizons * dt, de_dk[:, 0], label = 'Agent 1')
     ax.plot(horizons * dt, de_dk[:, 1], label = 'Agent 2')
     ax.legend()
     fig.tight_layout()
-    fig.savefig('de_dk.png', dpi = 300)
+    fig.savefig(f'agent_1_angle={round(agent_1_angle, 3)},agent_2_angle={-round(agent_2_angle, 3)}.png', dpi = 300)
     plt.show()

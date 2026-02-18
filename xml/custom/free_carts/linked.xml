@@ -1,0 +1,58 @@
+<mujoco model="linked-cart-poles">
+
+    <compiler angle="radian"/>
+    <option integrator="implicitfast" timestep="0.01" gravity="0 0 -9.81"/>
+
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.6 0.7 0.9" rgb2="0.3 0.3 0.4" width="512" height="3072"/>
+        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
+        <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    </asset>
+
+    <worldbody>
+        <light name="global_light" directional="true" diffuse="1 1 1"/>
+        <geom name="floor" pos="0 0 0" size="0 0 0.05" type="plane" material="groundplane" contype="0" conaffinity="0"/>
+
+        <!-- CART + PENDULUM 0 -->
+        <body name="cart:0" pos="-1.1 0 1.2">
+            <joint name="slide:0" type="slide" axis="1 0 0" stiffness="0" damping="0"/>
+            <geom name="cart_geom:0" type="box" size="0.15 0.1 0.05" rgba="0.2 0.2 0.8 1" mass="1" contype="0" conaffinity="0"/>
+
+            <!-- pendulum hanging from cart -->
+            <body name="pendulum:0" pos="0 0 0.0">
+                <joint name="hinge:0" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0.05"/>
+
+                <geom name="rod:0" type="capsule" fromto="0 0 0 0 0 -1" size="0.02" mass="1" contype="0" conaffinity="0"/>
+                <geom name="bob:0" type="sphere" pos="0 0 -1" size="0.05" rgba="0 0 1 1" mass="0.05" contype="0" conaffinity="0"/>
+                <site name="site:0" pos="0 0 -1" size="0.01"/>
+            </body>
+        </body>
+
+        <!-- CART + PENDULUM 1 -->
+        <body name="cart:1" pos="1.1 0 1.2">
+            <joint name="slide:1" type="slide" axis="1 0 0" stiffness="0" damping="0"/>
+            <geom name="cart_geom:1" type="box" size="0.15 0.1 0.05" rgba="0.8 0.3 0.2 1" mass="1" contype="0" conaffinity="0"/>
+
+            <body name="pendulum:1" pos="0 0 0.0">
+                <joint name="hinge:1" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0.05"/>
+
+                <geom name="rod:1" type="capsule" fromto="0 0 0 0 0 -1" size="0.02" mass="1" contype="0" conaffinity="0"/>
+                <geom name="bob:1" type="sphere" pos="0 0 -1" size="0.05" rgba="1 0.5 0 1" mass="0.05" contype="0" conaffinity="0"/>
+                <site name="site:1" pos="0 0 -1" size="0.01"/>
+            </body>
+        </body>
+    </worldbody>
+
+    <!-- <tendon>
+        <spatial name="spring_0_1" stiffness="3.0" damping="0.1" springlength="2.2" rgba="1 0 0 1" width="0.005">
+            <site site="site:0"/>
+            <site site="site:1"/>
+        </spatial>
+    </tendon> -->
+
+    <actuator>
+        <motor joint="hinge:0" gear="1"/>
+        <motor joint="hinge:1" gear="1"/>
+        <motor name="cart_force_1" joint="slide:1" gear="1.0"/>
+    </actuator>
+</mujoco>

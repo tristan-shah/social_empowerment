@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 
 from soc_emp import Dynamics
-from variable_horizon import compute_multiagent_empowerment_grad, compute_multiagent_control
+from scripts.linked_pendulum.test_variable_horizon import compute_multiagent_empowerment_grad, compute_multiagent_control
 from soc_emp.utils import smooth_angle_wrap
 
 '''

@@ -23,10 +23,10 @@ right_state = [2, 3, 6, 7]
 
 from soc_emp.empowerment import unroll, batch_diag, compute_F_from_A_B, split_channel_matrix, iterative_waterfilling, select_output, compute_multiagent_control
 
-# LEFT_AGENT_STATE = jnp.array([0, 1, 4, 5])
-# RIGHT_AGENT_STATE = jnp.array([2, 3, 6, 7])
-LEFT_AGENT_STATE = jnp.array([0, 1])
-RIGHT_AGENT_STATE = jnp.array([2, 3])
+LEFT_AGENT_STATE = jnp.array([0, 1, 4, 5])
+RIGHT_AGENT_STATE = jnp.array([2, 3, 6, 7])
+# LEFT_AGENT_STATE = jnp.array([0, 1])
+# RIGHT_AGENT_STATE = jnp.array([2, 3])
 
 def compute_multiagent_empowerment(
         dyn: Dynamics, 
@@ -47,7 +47,8 @@ def compute_multiagent_empowerment(
     S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
 
     # hardcoded noise perturbation
-    S_z = jnp.eye(2) * observation_noise
+    # S_z = jnp.eye(2) * observation_noise
+    S_z = jnp.eye(4) * observation_noise
 
     X = unroll(dyn, x0, U)
     A, B = jax.vmap(dyn.linearize)(X[:-1], U)

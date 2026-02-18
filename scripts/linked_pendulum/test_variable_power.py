@@ -13,14 +13,16 @@ if __name__ == '__main__':
     ## hyperparams
     seed = 12312
     key = jax.random.key(seed)
-    steps = 3000  ## simulation horizon
+    steps = 2000#3000  ## simulation horizon
     alpha = 0.01
-    horizon = 50
+    horizon = 250
     observation_noise = 1.0
     stiffness = 3.0
     damping = 0.1
 
-    power = jnp.array([1.2, 1.6])
+    power = jnp.array([0.2, 20.0])
+    # power = jnp.array([0.5, 5.0])
+    # power = jnp.array([0.2, 10.0])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -42,7 +44,21 @@ if __name__ == '__main__':
     ## initial state of pendula (all zeros)
     xt = dyn.init_state()
 
-    
+
+    '''
+    test control calculation
+    '''
+    # grad_E = compute_multiagent_empowerment_grad(dyn, xt, U, power * horizon, alpha, observation_noise)
+    # # i, e, _ = compute_multiagent_empowerment(dyn, xt, U, power * horizon, alpha, observation_noise)
+    # ## choose an empowerment maximizing action
+    # _, B = dyn.linearize(xt, U[0])
+    # # ut = compute_multiagent_control(grad_E, B, power, key)
+    # ut = jnp.sign(grad_E @ B)[0, :] * power
+    # print(ut)
+
+    '''
+    run controller
+    '''
     X = jnp.zeros((steps+1, dyn.state_dim))
     X = X.at[0].set(xt)
 
@@ -62,14 +78,18 @@ if __name__ == '__main__':
         iterations = iterations.at[t].set(i)
         empowerment = empowerment.at[t].set(e)
 
-        if t == 0:
-            ## choose a random action on the first step
-            random_signs = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(dyn.control_dim,))
-            ut = power * random_signs
-        else:
-            ## choose an empowerment maximizing action
-            _, B = dyn.linearize(xt, U[0])
-            ut = compute_multiagent_control(grad_E, B, power, key)
+        # if t == 0:
+        #     ## choose a random action on the first step
+        #     random_signs = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(dyn.control_dim,))
+        #     ut = power * random_signs
+        # else:
+        #     ## choose an empowerment maximizing action
+        #     _, B = dyn.linearize(xt, U[0])
+        #     ut = compute_multiagent_control(grad_E, B, power, key)
+
+        _, B = dyn.linearize(xt, U[0])
+        ## choose an action that maximizes the empowerment of agent 0
+        ut = jnp.sign(grad_E @ B)[0, :] * power
 
         ## step the dynamics and record the result
         xt = dyn.step(xt, ut)
@@ -78,7 +98,7 @@ if __name__ == '__main__':
         ## print out some relevant quantities
         print(t, xt, ut, e, i)
 
-    run_name = f'seed={seed}_horizon={horizon}_power={power}_alpha={alpha}_noise={observation_noise}'
+    run_name = f'left_master-seed={seed}_horizon={horizon}_power={power}_alpha={alpha}_noise={observation_noise}-stiff={stiffness}-damp={damping}'
 
     dyn.render(X, path = run_name + '.mp4', skip = 3)
 
