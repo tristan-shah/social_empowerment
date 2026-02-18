@@ -126,7 +126,8 @@ def run_multiagent_empowerment(dyn: Dynamics, U: Array, power: Array, alpha: flo
     ## --- First action: randomly ±power per dimension ---
     key, subkey = jax.random.split(key)
     random_signs = jax.random.choice(subkey, jnp.array([-1, 1]), shape=(dyn.control_dim,))
-    ut0 = power * random_signs
+    # ut0 = power * random_signs
+    ut0 = power * random_signs * 0.0
     xt1 = dyn.step(xt0, ut0)   # advance state with the random first action
 
     @jax.jit
@@ -194,7 +195,7 @@ if __name__ == '__main__':
     device_batch_size = args.batch_size
     num_devices = jax.device_count()
 
-    output_dir = Path(f'results/sweep_power_inverted_hinge/resolution={num_powers}_seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
+    output_dir = Path(f'results/sweep_power_inverted_hinge_deterministic/resolution={num_powers}_seed={seed}_horizon={horizon}_alpha={alpha}_observation_noise={observation_noise}_stiffness={stiffness}')
     output_dir.mkdir(parents = True, exist_ok = True)
 
     ## create a function that will execute run_multi_agent_empowerment on a batch of powers and keys 
@@ -264,7 +265,7 @@ if __name__ == '__main__':
         if actual_effective_batch_size < effective_batch_size:
             pad_size = effective_batch_size - actual_effective_batch_size
 
-            ## ⚠️ split from a fresh subkey so padding randomness is also unique
+            ## split from a fresh subkey so padding randomness is also unique
             _, pad_subkey = jax.random.split(key)
             batch_pairs = jnp.vstack([batch_pairs, jnp.ones((pad_size, 2))])
             batch_keys = jnp.concatenate([batch_keys, jax.random.split(pad_subkey, pad_size)])
