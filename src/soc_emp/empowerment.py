@@ -212,9 +212,6 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     '''
     # Q = jax.lax.stop_gradient(Q)
 
-    '''
-    original
-    '''
     D_inv_sqrt = batch_diag((D + 1e-12) ** -0.5)
 
     ## compute new channel matrix (1/\sqrt{D}) @ Q.T @ F_agent
@@ -223,16 +220,7 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     ## compute snr levels
     _, E, M = jnp.linalg.svd(H, full_matrices = False)
 
-    '''
-    original
-    '''
     eigs = jnp.power(E, 2.0).clip(min = 1e-12)
-
-    '''
-    new
-    '''
-    # eigs = jnp.maximum(E**2, TOL)
-
 
     ## compute waterline (for each agent) [nu_0, nu_1, ..., nu_k]
     nu = batch_water_filling(eigs, power)
@@ -251,7 +239,6 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     e = 0.5 * jnp.sum(jnp.log(1.0 + p * eigs), axis = 1)
     return e, S
 
-# MAX_ITER = 10
 MAX_ITER = 50
 
 @jax.jit
@@ -317,8 +304,6 @@ def compute_multiagent_empowerment(
     F = jnp.permute_dims(F, (1, 0, 2))
 
     F_agent, F_noise = split_channel_matrix(F, num_agents)
-
-
 
     '''
     egoistic double pendulum. Each agent only cares about its own state (angle, angular velocity).
