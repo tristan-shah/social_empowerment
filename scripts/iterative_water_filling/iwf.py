@@ -13,14 +13,14 @@ if __name__ == '__main__':
     key = jax.random.PRNGKey(41)
 
     receive_dim = 5
-    num_agents = 3
+    num_agents = 10
     horizon = 100
     agent_transmit_dim = 5
     dm = horizon * agent_transmit_dim
 
     power = jnp.ones(num_agents)
-    iterations = 100
-    alpha = 0.7
+    iterations = 200 #100
+    alpha = 0.2 #0.7
 
     ## construct a random channel matrix
     H = jax.random.normal(key, (receive_dim, horizon, num_agents * agent_transmit_dim))
@@ -48,8 +48,8 @@ if __name__ == '__main__':
 
         delta = e - e_prev
         rel_change = delta/e_prev
-        print(alpha)
         e_prev = e
+        print(e)
 
     fig, ax = plt.subplots(1, 1)
     ax.set_xlabel('Iterations')

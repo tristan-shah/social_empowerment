@@ -199,21 +199,23 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     power is the power budget for each agent
     '''
 
+    F_noise = jax.lax.stop_gradient(F_noise)
+
     S_noise = einsum(F_noise, S, F_noise, 'a1 a2 x1 m1, a2 m1 m2, a1 a2 x2 m2 -> a1 x1 x2') + S_z
 
     ## eigen-decomp on noise
     D, Q = jnp.linalg.eigh(S_noise)
 
     '''
+    There is some issue here. Eigenvectors (Q) are not differentiable w.r.t the input matrix when that matrix has very similar eigenvectors.
+    When the agent's have super weak coupling then their noise is close to the identity.
+    '''
+    # Q = jax.lax.stop_gradient(Q)
+
+    '''
     original
     '''
     D_inv_sqrt = batch_diag((D + 1e-12) ** -0.5)
-
-    '''
-    new
-    '''
-    # D_safe = jnp.maximum(D, TOL)
-    # D_inv_sqrt = batch_diag((D_safe + 1e-12) ** -0.5)
 
     ## compute new channel matrix (1/\sqrt{D}) @ Q.T @ F_agent
     H = einsum(D_inv_sqrt, Q, F_agent, 'a x1 x2, a x3 x2, a x3 m -> a x1 m')
@@ -295,13 +297,19 @@ def compute_multiagent_empowerment(
     du = dyn.control_dim // num_agents
     dm = du * horizon
 
+    # AGENT_0_STATE = [0, 2]
+    # AGENT_1_STATE = [1, 3]
+
+    AGENT_0_STATE = [0]
+    AGENT_1_STATE = [1]
+
     '''
     original
     '''
     S = batch_diag(power[:, None] * jnp.ones((num_agents, dm)) / dm)
 
     # hardcoded noise perturbation
-    S_z = jnp.eye(2) * observation_noise
+    S_z = jnp.eye(len(AGENT_0_STATE)) * observation_noise
 
     X = unroll(dyn, x0, U)
     A, B = jax.vmap(dyn.linearize)(X[:-1], U)
@@ -310,12 +318,14 @@ def compute_multiagent_empowerment(
 
     F_agent, F_noise = split_channel_matrix(F, num_agents)
 
+
+
     '''
     egoistic double pendulum. Each agent only cares about its own state (angle, angular velocity).
     '''
     F_agent = jnp.stack([
-        F_agent[0, [0, 2], :],
-        F_agent[1, [1, 3], :]
+        F_agent[0, AGENT_0_STATE, :],
+        F_agent[1, AGENT_1_STATE, :]
         ], axis = 0)
     
     '''
@@ -329,8 +339,8 @@ def compute_multiagent_empowerment(
 
     ## chained indexing allows to select the correct submatrices
     F_noise = jnp.stack([
-        F_noise[0][:, [0, 2], :],
-        F_noise[1][:, [1, 3], :]
+        F_noise[0][:, AGENT_0_STATE, :],
+        F_noise[1][:, AGENT_1_STATE, :]
     ], axis = 0)
 
     i, e, S = iterative_waterfilling(F_agent, F_noise, S, S_z, power, alpha)
