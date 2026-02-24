@@ -284,11 +284,13 @@ def compute_multiagent_empowerment(
     du = dyn.control_dim // num_agents
     dm = du * horizon
 
-    # AGENT_0_STATE = [0, 2]
-    # AGENT_1_STATE = [1, 3]
+    ## full state
+    AGENT_0_STATE = [0, 2]
+    AGENT_1_STATE = [1, 3]
 
-    AGENT_0_STATE = [0]
-    AGENT_1_STATE = [1]
+    ## angle state
+    # AGENT_0_STATE = [0]
+    # AGENT_1_STATE = [1]
 
     '''
     original
