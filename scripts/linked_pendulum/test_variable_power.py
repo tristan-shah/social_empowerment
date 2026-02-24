@@ -11,16 +11,16 @@ from soc_emp.utils import smooth_angle_wrap
 if __name__ == '__main__':
     print(f'GPU devices: {jax.devices()}')
     ## hyperparams
-    seed = 12312
+    seed = 123123
     key = jax.random.key(seed)
     steps = 2000
     alpha = 0.01
-    horizon = 100
+    horizon = 150
     observation_noise = 1.0
     stiffness = 3.0
-    damping = 0.0
+    damping = 0.1
 
-    power = jnp.array([1.0, 1.5])
+    power = jnp.array([0.9, 1.4])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
