@@ -79,10 +79,10 @@ if __name__ == '__main__':
     leader = 0
 
     ## flock parameters
-    num_agents = 50
+    num_agents = 100
     grid_size = 10.0
     speed = 1.0
-    neighbor_radius = 0.5 #10.0 # 5.0
+    neighbor_radius = 1.0 #0.5 #10.0 # 5.0
     neighbor_falloff = 10.0
     dt = 0.05
 
