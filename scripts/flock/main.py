@@ -121,13 +121,13 @@ if __name__ == '__main__':
     X = X.at[0].set(xt)
 
     for t in range(steps):
-
-        grad_e = compute_group_empowerment_grad(xt)
+        
         i, e, S = compute_group_empowerment(xt)
+        grad_e = compute_group_empowerment_grad(xt)
         B = control_gain(xt, U[0])
-        ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
-        # ut = jnp.sign(grad_e[leader, :] @ B) * power_density
-        # ut = jnp.sign(jnp.sum(grad_e @ B, axis = 0)) * power_density
+        # ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
+        ut = jnp.sign(grad_e[leader, :] @ B) * power_density
+        # ut = jnp.zeros(flock.control_dim)
         xt = step(xt, ut)
 
         print(t, e, ut)
