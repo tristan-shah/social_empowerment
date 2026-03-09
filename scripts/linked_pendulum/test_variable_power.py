@@ -15,12 +15,12 @@ if __name__ == '__main__':
     key = jax.random.key(seed)
     steps = 2000
     alpha = 0.01
-    horizon = 150
+    horizon = 100
     observation_noise = 1.0
-    stiffness = 3.0
-    damping = 0.1
+    stiffness = 0.0 #3.0
+    damping = 0.0 #0.1
 
-    power = jnp.array([0.9, 1.4])
+    power = jnp.array([0.1, 20.0])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -71,18 +71,18 @@ if __name__ == '__main__':
             ## choose a random action on the first step
             random_signs = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(dyn.control_dim,))
             ut = power * random_signs
-        else:
-            ## choose an empowerment maximizing action
-            _, B = dyn.linearize(xt, U[0])
-            ut = compute_multiagent_control(grad_E, B, power, key)
         # else:
-        #     '''
-        #     Master servant
-        #     '''
+        #     ## choose an empowerment maximizing action
         #     _, B = dyn.linearize(xt, U[0])
-        #     ## choose an action that maximizes the empowerment of agent 0
-        #     ## gradient of agent 0's empowerment
-        #     ut = jnp.sign(grad_E[0, :] @ B) * power
+        #     ut = compute_multiagent_control(grad_E, B, power, key)
+        else:
+            '''
+            Master servant
+            '''
+            _, B = dyn.linearize(xt, U[0])
+            ## choose an action that maximizes the empowerment of agent 0
+            ## gradient of agent 0's empowerment
+            ut = jnp.sign(grad_E[0, :] @ B) * power
 
         ## step the dynamics and record the result
         xt = dyn.step(xt, ut)

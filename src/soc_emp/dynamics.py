@@ -50,9 +50,6 @@ class Dynamics:
         model.vis.global_.offheight = 1080
         model.vis.global_.offwidth = 1920
 
-        # model.vis.global_.offheight = 720
-        # model.vis.global_.offwidth = 1280
-        # model.tendon_stiffness[0] = 3.0 ## default
         self.model = model
 
         ## create mjx model
@@ -112,3 +109,32 @@ class Dynamics:
         renderer.close()
         writer.close()
         return None
+
+def make_step(dyn: Dynamics):
+
+    model = dyn.mjx_model
+    data_template = mjx.make_data(model)
+    nq = dyn.nq
+
+    def step(xt: Array, ut: Array):
+        qpos, qvel = split_state(xt, nq)
+        data = data_template.replace(qpos = qpos, qvel = qvel, ctrl = ut)
+        data = mjx.step(model, data)
+        return get_state(data)
+    
+    return jax.jit(step)
+
+def make_unroll(step: callable):
+
+    def unroll(x0: Array, U: Array):
+
+        def body_fn(x: Array, u: Array):
+            x_next = step(x, u)
+            return x_next, x_next
+        
+        _, X = jax.lax.scan(body_fn, x0, U)
+        X = jnp.concatenate([x0[None, :], X], axis = 0)
+
+        return X
+    
+    return jax.jit(unroll)
