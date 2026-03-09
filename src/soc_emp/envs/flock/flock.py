@@ -14,7 +14,6 @@ class Flock:
     grid_size: int = 5.0
     speed: float = 1.0
     neighbor_radius: float = 0.5
-    neighbor_falloff: float = 10.0
     dt: float = 0.05
 
     @property
@@ -102,15 +101,10 @@ def make_step(flock: Flock):
         ## compute position differences
         raw_diff = pos[:, None, :] - pos[None, :, :]
         diff_mi = minimum_image_diff(raw_diff, flock.grid_size)
-        # dist = jnp.sqrt(jnp.sum(diff_mi ** 2, axis = 2) + 1e-10)
-        # dist = jnp.sqrt(jnp.sum(diff_mi ** 2, axis = 2) + 1e-6)
         dist = jnp.linalg.norm(diff_mi + 1e-10, axis = 2)
 
         ## compute soft neighbor influence
-        ## positive (neigbor - dist) means that the neighbor is within the radius and sigmoid is approximately 1
-        # influence = jax.nn.sigmoid(flock.neighbor_falloff * (flock.neighbor_radius - dist))
         influence = jnp.exp(-0.5 * (dist / flock.neighbor_radius) ** 2)
-
 
         # influence = influence * (1 - jnp.eye(flock.num_agents)) ## removes self influence? more interesting behavior with this
         neighbors = influence.sum(axis = 1, keepdims = True) + 1e-8  # avoid div by zero
@@ -141,3 +135,24 @@ def make_step(flock: Flock):
         return state
 
     return jax.jit(step)
+
+
+def make_compute_order_parameter(flock: Flock):
+
+    def compute_order_parameter(state: Array) -> Array:
+        '''
+        Compute the Vicsek order parameter φ ∈ [0, 1].
+
+        φ = (1/N) |Σ_i v̂_i|
+
+        where v̂_i = (cos(aᵢ), sin(aᵢ)) is the unit heading of agent i.
+        φ = 1 means perfect alignment, φ ≈ 0 means disordered.
+        '''
+        _, _, a = decode_state(state, flock.num_agents)
+
+        mean_cos = jnp.mean(jnp.cos(a))
+        mean_sin = jnp.mean(jnp.sin(a))
+
+        return jnp.sqrt(mean_cos ** 2 + mean_sin ** 2)
+
+    return jax.jit(compute_order_parameter)
