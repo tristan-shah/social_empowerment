@@ -7,8 +7,12 @@ if __name__ == '__main__':
 
 
     path = Path('results/flock/')
-    egoistic_path = path / 'behavioregoistic_agents20_grid10.0_speed1.0_radius1.0_dt0.05_horizon5_power2.0_alpha0.01_noise1.0_steps500_seed0'
-    passive_path = path / 'behaviorpassive_agents20_grid10.0_speed1.0_radius1.0_dt0.05_horizon5_power2.0_alpha0.01_noise1.0_steps500_seed0'
+    # egoistic_path = path / 'behavioregoistic_agents20_grid10.0_speed1.0_radius1.0_dt0.05_horizon5_power2.0_alpha0.01_noise1.0_steps500_seed0'
+    # passive_path = path / 'behaviorpassive_agents20_grid10.0_speed1.0_radius1.0_dt0.05_horizon5_power2.0_alpha0.01_noise1.0_steps500_seed0'
+
+    egoistic_path = path / 'behavioregoistic_agents100_grid10.0_speed1.0_radius0.5_dt0.05_horizon5_power2.0_alpha0.01_noise1.0_steps500_seed0'
+    passive_path = path / 'behaviorpassive_agents100_grid10.0_speed1.0_radius0.5_dt0.05_horizon5_power2.0_alpha0.01_noise1.0_steps500_seed0'
+
 
     egoistic_empowerment = jnp.load(egoistic_path / 'empowerment_hist.npy')
     passive_empowerment = jnp.load(passive_path / 'empowerment_hist.npy')

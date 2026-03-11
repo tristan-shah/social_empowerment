@@ -9,7 +9,7 @@ from jax import numpy as jnp
 
 import matplotlib.pyplot as plt
 
-from soc_emp.envs.flock import Flock, make_reset, make_step, render, render_video, decode_state, make_compute_order_parameter
+from soc_emp.envs.flock import Flock, make_reset, make_step, render, render_video, make_compute_order_parameter, build_flock_state_matrix
 from soc_emp.dynamics import make_unroll
 
 from soc_emp.empowerment import compute_F_from_A_B, split_channel_matrix, iterative_waterfilling, select_output
@@ -59,21 +59,6 @@ def make_compute_group_empowerment(step: callable, state_matrix: Array, U: Array
         return i, e, S_new
 
     return jax.jit(compute_group_empowerment)
-
-def build_flock_state_matrix(flock: Flock, state_type: str):
-    idx = jnp.arange(0, flock.num_agents * 3)
-    x, y, a = decode_state(idx, flock.num_agents)
-
-    if state_type == 'pos':
-        return jnp.stack([x, y], axis = 1)
-    elif state_type == 'angle':
-        return a[:, None]
-    elif state_type == 'full':
-        return jnp.stack([x, y, a], axis = 1)
-    else:
-        raise ValueError('Invalid state type.')
-    
-
 
 def make_run_dir(args) -> str:
     """Create and return a results directory path based on run parameters."""

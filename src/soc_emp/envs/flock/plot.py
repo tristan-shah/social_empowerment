@@ -75,7 +75,7 @@ def _make_colors(num_agents: int, leader: int | None) -> np.ndarray:
 # Single-frame render
 # ---------------------------------------------------------------------------
 
-def render(state: Array, flock: Flock, show_radius: bool = False, leader: int | None = None) -> plt.Figure:
+def render_image(state: Array, flock: Flock, show_radius: bool = False, leader: int | None = None, close: bool = False) -> plt.Figure:
     """
     Render a single frame of the flock.
 
@@ -100,14 +100,17 @@ def render(state: Array, flock: Flock, show_radius: bool = False, leader: int | 
 
     ax.quiver(
         x, y, cx, cy,
-        color=colors,
-        scale=50,
-        width=0.003,
-        alpha=0.85,
+        color = colors,
+        scale = 50,
+        width = 0.003,
+        alpha = 0.85,
     )
 
-    fig.tight_layout(pad=0)
-    plt.close(fig)
+    fig.tight_layout()#(pad=0)
+    
+    if close:
+        plt.close(fig)
+
     return fig
 
 
@@ -119,58 +122,65 @@ def render_video(
     states: Array,
     flock: Flock,
     fps: int = 50,
-    save_path: str | None = None,
+    path: str | None = None,
     show_radius: bool = False,
-    dpi: int = 150,
+    dpi: int = 200,
     leader: int | None = None,
 ) -> animation.FuncAnimation:
-    """
-    Render a trajectory as an animation.
-
-    Args:
-        states:       State trajectory, shape (T, num_agents * 3).
-        flock:        Flock config.
-        fps:          Playback speed.
-        save_path:    Optional path to save as .mp4 (requires ffmpeg).
-        show_radius:  If True, draw the interaction radius around each agent.
-        dpi:          Resolution of the saved video. Has no effect on screen display.
-        leader:       Optional index of the leader agent (rendered in red).
-
-    Returns:
-        ani: FuncAnimation object.
-    """
     states_np = np.asarray(states)
+    T, n = len(states_np), flock.num_agents
+
+    # Vectorised decode — single reshape + two trig calls over the full (T, n) array
+    s = states_np.reshape(T, n, 3)
+    all_x  = s[:, :, 0]          # (T, n)
+    all_y  = s[:, :, 1]
+    all_cx = np.cos(s[:, :, 2])
+    all_cy = np.sin(s[:, :, 2])
+
+    # Pre-allocate offset buffer reused every frame
+    offsets = np.empty((n, 2), dtype=np.float64)
 
     fig, ax = plt.subplots(figsize=(10, 10), facecolor="white")
     _setup_ax(ax, flock.grid_size)
-
-    colors = _make_colors(flock.num_agents, leader)
-
-    x0, y0, cx0, cy0 = _decode_np(states_np[0], flock.num_agents)
-
-    circles = _draw_radii(ax, x0, y0, flock.neighbor_radius) if show_radius else []
-    q = ax.quiver(x0, y0, cx0, cy0, color=colors, scale=50, width=0.003, alpha=0.85)
-
     fig.tight_layout(pad=0)
+    fig.canvas.draw()
+
+    colors = _make_colors(n, leader)
+    circles = _draw_radii(ax, all_x[0], all_y[0], flock.neighbor_radius) if show_radius else []
+    q = ax.quiver(all_x[0], all_y[0], all_cx[0], all_cy[0],
+                  color=colors, scale=50, width=0.003, alpha=0.85)
 
     def update(frame):
-        x, y, cx, cy = _decode_np(states_np[frame], flock.num_agents)
-        q.set_offsets(np.stack([x, y], axis=1))
-        q.set_UVC(cx, cy)
-        for c, xi, yi in zip(circles, x, y):
-            c.center = (xi, yi)
+        offsets[:, 0] = all_x[frame]
+        offsets[:, 1] = all_y[frame]
+        q.set_offsets(offsets)
+        q.set_UVC(all_cx[frame], all_cy[frame])
+        if circles:
+            for c, xi, yi in zip(circles, all_x[frame], all_y[frame]):
+                c.center = (xi, yi)
         return (q, *circles)
 
     ani = animation.FuncAnimation(
-        fig, update, frames=len(states_np), interval=1000 // fps, blit=True
+        fig, update, frames=T, interval=1000 // fps, blit=True,
     )
 
-    if save_path is not None:
-        writer = animation.FFMpegWriter(fps=fps, bitrate=4000)
-        ani.save(save_path, writer=writer, dpi=dpi)
+    if path is not None:
+        writer = animation.FFMpegWriter(
+            fps=fps,
+            bitrate=-1,
+            extra_args=[
+                "-vcodec", "libx264",
+                "-crf", "18",
+                "-preset", "fast",
+                "-pix_fmt", "yuv420p",
+                "-threads", "0",
+            ],
+        )
+        with plt.rc_context({"path.simplify": True, "path.simplify_threshold": 1.0}):
+            ani.save(path, writer=writer, dpi=dpi)
+        plt.close(fig)
 
     return ani
-
 
 # ---------------------------------------------------------------------------
 # Order parameter plot
@@ -233,7 +243,7 @@ if __name__ == '__main__':
     _, states = jax.lax.scan(scan_fn, state0, None, length=T)
     states = jnp.concatenate([state0[None], states], axis=0)
 
-    fig = render(states[-1], flock, show_radius=True, leader=0)
+    fig = render_image(states[-1], flock, show_radius=True, leader=0)
     fig.savefig("flock_frame.png", dpi=300, bbox_inches="tight")
     print("Saved flock_frame.png")
 
