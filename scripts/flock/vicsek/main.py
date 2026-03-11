@@ -36,7 +36,6 @@ def make_unroll(step: callable):
     return jax.jit(unroll)
 
 
-
 def make_compute_group_empowerment(step: callable, state_matrix: Array, U: Array, power_density: Array, alpha: float, observation_noise: float):
 
     ## build helper functions
@@ -51,9 +50,10 @@ def make_compute_group_empowerment(step: callable, state_matrix: Array, U: Array
     agent_control_dim = total_control_dim // num_agents
     message_dim = horizon * agent_control_dim ## this is the length of the message from each agent
 
-    ## this is the initial covariance matrix for each agent.
+    ## This is the initial covariance matrix for each agent. Assume diagonal
     S = jax.vmap(jnp.diag)(power[:, None] * jnp.ones((num_agents, message_dim)) / message_dim)
-    S_z = jnp.eye(state_matrix.shape[1]) * observation_noise ## this is the observation covariance matrix for each agent
+    ## this is the observation covariance matrix for each agent. Assume identity scaled by a scalar
+    S_z = jnp.eye(state_matrix.shape[1]) * observation_noise 
 
     def compute_group_empowerment(xt: Array, key):
 
@@ -84,6 +84,41 @@ def make_compute_group_empowerment(step: callable, state_matrix: Array, U: Array
         return e
 
     return jax.jit(compute_group_empowerment)
+
+from einops import einsum
+from soc_emp.empowerment import waterfilling_implicit, compute_power
+
+def make_compute_empowerment(step: callable, U: Array, power_density: float):
+
+    ## build helper functions
+    linearize = jax.jit(jax.vmap(jax.jacfwd(step, argnums = (0, 1))))
+    unroll = make_unroll(step)
+
+
+    ## extract relevant shapes
+    horizon = U.shape[0]
+    power = horizon * power_density ## total probing power depends on horizon
+
+    def compute_empowerment(xt: Array, key):
+
+        keys = jax.random.split(key, horizon)
+
+        X = unroll(xt, U, keys)
+        A, B = linearize(X[:-1], U, keys)
+        F = compute_F_from_A_B(A, B)
+        F = jnp.permute_dims(F, (1, 0, 2))
+        print(F.shape)
+
+        ## S is the covariance matrix of the final state.
+        S = einsum(F, F, 'x1 T u, x2 T u -> x1 x2')
+        h2 = jnp.linalg.eigvalsh(S).clip(min = 1e-12)
+        v = waterfilling_implicit(h2, power)
+        p = compute_power(v, h2)
+        e = 0.5 * jnp.sum(jnp.log(1 + p * h2))
+
+        return e
+
+    return jax.jit(compute_empowerment)
 
 
 def main(args):
@@ -123,8 +158,11 @@ def main(args):
 
     xt = reset(key)
 
-    ## save an image of the initial state
-    render_image(xt, flock, show_radius = True).savefig(output_dir / 'initial_state.png', dpi = 300)
+    # ## save an image of the initial state
+    # render_image(xt, flock, show_radius = True).savefig(output_dir / 'initial_state.png', dpi = 300)
+
+    compute_empowerment = make_compute_empowerment(step, U, args.power_density)
+    compute_empowerment_grad = jax.jit(jax.jacfwd(compute_empowerment))
 
     compute_group_empowerment = make_compute_group_empowerment(step, state_matrix, U, power_density, args.alpha, args.observation_noise)
     compute_group_empowerment_grad = jax.jit(jax.jacfwd(compute_group_empowerment))
@@ -147,7 +185,6 @@ def main(args):
         B = control_gain(xt, U[0], subkey)
         ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
 
-
         ## select action based on chosen behavior
         if args.behavior == 'leader':
                 
@@ -164,8 +201,11 @@ def main(args):
         elif args.behavior == 'passive':
             ut = jnp.zeros(flock.control_dim)
 
-
-
+        elif args.behavior == 'vanilla':
+            grad_e = compute_empowerment_grad(xt, subkey)
+            B = control_gain(xt, U[0], subkey)
+            ut = jnp.sign(grad_e @ B) * args.power_density
+            print(ut.shape)
 
         key, subkey = jax.random.split(key)
 
@@ -179,6 +219,8 @@ def main(args):
 
 
     fig, ax = plt.subplots(1, 1)
+    ax.set_xlabel('Timestep')
+    ax.set_ylabel('Empowerment (nats)')
     for agent in range(flock.num_agents):
         ax.plot(empowerment_hist[:, agent])
     fig.tight_layout()
@@ -186,6 +228,8 @@ def main(args):
     plt.close(fig)
 
     fig, ax = plt.subplots(1, 1)
+    ax.set_xlabel('Timestep')
+    ax.set_ylabel('Order Parameter')
     ax.plot(order_parameter_hist)
     fig.tight_layout()
     fig.savefig(output_dir / 'order_parameter.png', dpi=300)
@@ -200,6 +244,7 @@ def main(args):
         LEADER = None
     
     render_video(X, flock, path = output_dir / 'vid.mp4', leader = LEADER)
+
     return None
 
 
@@ -222,7 +267,7 @@ if __name__ == '__main__':
     parser.add_argument('--power_density', type = float, default = 2.0)
     parser.add_argument('--alpha', type = float, default = 0.01, help = 'IWF smoothing')
     parser.add_argument('--observation_noise', type = float, default = 1.0)
-    parser.add_argument('--behavior', type = str, choices = ['leader', 'egoistic', 'passive'], default = 'egoistic')
+    parser.add_argument('--behavior', type = str, choices = ['leader', 'egoistic', 'passive', 'vanilla'], default = 'egoistic')
 
     args = parser.parse_args()
 

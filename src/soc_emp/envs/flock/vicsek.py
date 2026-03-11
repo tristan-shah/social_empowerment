@@ -73,8 +73,6 @@ def make_step(flock: Vicsek):
 
         ## gaussian neighbor influence (soft adjacency matrix)
         influence = jnp.exp(-0.5 * (dist / neighbor_radius) ** 2)
-        # ## hard cutoff
-        # influence = (dist < neighbor_radius).astype(jnp.float32)
 
         ## angle difference
         angle_diff = a[None, :] - a[:, None]
@@ -82,15 +80,11 @@ def make_step(flock: Vicsek):
         ## gradient of entropy formula
         torque = J * (influence * jnp.sin(angle_diff)).sum(axis = 1)
 
-        ## debugging large torques
-        # jax.debug.print("torque*dt min/max: {x}", x=jnp.array([torque.min(), torque.max()]) * dt)
-        # jax.debug.print("angles: {x}", x=a)
-
-        epsilon = jax.random.normal(key, shape = (num_agents,))
-        noise = jnp.sqrt(2 * D * dt) * epsilon
+        ## dW noise
+        noise = jnp.sqrt(2 * D * dt) * jax.random.normal(key, shape = (num_agents,))
 
         ## angle update
-        a = smooth_angle_wrap(a + torque * dt + noise + action * dt)
+        a = smooth_angle_wrap(a + torque * dt + action * dt + noise)
 
         ## position update
         vel = speed * jnp.stack([jnp.cos(a), jnp.sin(a)], axis = 1)
