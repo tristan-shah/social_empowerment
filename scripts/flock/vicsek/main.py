@@ -1,13 +1,18 @@
+from argparse import ArgumentParser
+from pathlib import Path
+import json
+
 import jax
 from jax import Array
 from jax import numpy as jnp
-from jax.experimental import sparse
 
 import matplotlib.pyplot as plt
 
 from soc_emp.envs.flock.vicsek import Vicsek, make_reset, make_step
 from soc_emp.envs.flock.plot import render_image, render_video
-from soc_emp.envs.flock.utils import build_flock_state_matrix
+from soc_emp.envs.flock.utils import build_flock_state_matrix, compute_order_parameter
+from soc_emp.empowerment import compute_F_from_A_B, split_channel_matrix, iterative_waterfilling
+from soc_emp.utils import dict_to_string
 
 def make_unroll(step: callable):
     '''
@@ -31,7 +36,6 @@ def make_unroll(step: callable):
     return jax.jit(unroll)
 
 
-from soc_emp.empowerment import compute_F_from_A_B, split_channel_matrix, iterative_waterfilling
 
 def make_compute_group_empowerment(step: callable, state_matrix: Array, U: Array, power_density: Array, alpha: float, observation_noise: float):
 
@@ -82,42 +86,59 @@ def make_compute_group_empowerment(step: callable, state_matrix: Array, U: Array
     return jax.jit(compute_group_empowerment)
 
 
-if __name__ == '__main__':
-    seed = 10
-    key = jax.random.key(seed)
-    num_agents = 30
-    grid_size = 5.0 #10.0
-    neighbor_radius = 0.5
-    speed = 1.0
-    J = 0.1
-    D = 0.0 #0.1
-    steps = 1000
-    horizon = 5
-    state_type = 'angle'
-    state_matrix = build_flock_state_matrix(num_agents, state_type)
+def main(args):
+
+    ## hardcode leader
+    LEADER = 0
+    
+    ## extracting the parameters into a dictionary
+    params = vars(args)
+    run_name = dict_to_string(params)
+
+    ## build paths
+    root = Path('results') / 'Vicsek'
+    output_dir = root / run_name
+
+    ## build the directory
+    output_dir.mkdir(parents = True, exist_ok = True)
+    
+    ## save the parameters to a json
+    with open(output_dir / 'params.json', 'w') as f:
+        json.dump(params, f, indent = 2, sort_keys = True)
+
+    ## make a key
+    key = jax.random.key(args.seed)
+
+    state_type = 'angle' ## this is the only numerically stable state_type
+    state_matrix = build_flock_state_matrix(args.num_agents, state_type)
 
     ## empowerment arguments
-    power_density = 2.0 * jnp.ones(num_agents)
-    alpha = 0.01
-    observation_noise = 1.0
+    power_density = args.power_density * jnp.ones(args.num_agents)
 
     
-    flock = Vicsek(num_agents, grid_size, neighbor_radius, speed, J, D)
+    flock = Vicsek(args.num_agents, args.grid_size, args.radius, args.speed, args.J, args.D)
     reset = make_reset(flock)
     step = make_step(flock)
-    U = jnp.zeros((horizon, flock.control_dim))
+    U = jnp.zeros((args.horizon, flock.control_dim))
 
     xt = reset(key)
 
-    compute_group_empowerment = make_compute_group_empowerment(step, state_matrix, U, power_density, alpha, observation_noise)
+    ## save an image of the initial state
+    render_image(xt, flock, show_radius = True).savefig(output_dir / 'initial_state.png', dpi = 300)
+
+    compute_group_empowerment = make_compute_group_empowerment(step, state_matrix, U, power_density, args.alpha, args.observation_noise)
     compute_group_empowerment_grad = jax.jit(jax.jacfwd(compute_group_empowerment))
     control_gain = jax.jit(jax.jacfwd(step, argnums = 1))
 
+    ## track metrics
+    empowerment_hist = jnp.zeros((args.steps, flock.num_agents))
+    order_parameter_hist = jnp.zeros(args.steps)
 
-    X = jnp.zeros((steps + 1, flock.state_dim))
+    ## track states
+    X = jnp.zeros((args.steps + 1, flock.state_dim))
     X = X.at[0].set(xt)
 
-    for t in range(steps):
+    for t in range(args.steps):
         key, subkey = jax.random.split(key)
 
         ## select action
@@ -126,11 +147,85 @@ if __name__ == '__main__':
         B = control_gain(xt, U[0], subkey)
         ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
 
+
+        ## select action based on chosen behavior
+        if args.behavior == 'leader':
+                
+            grad_e = compute_group_empowerment_grad(xt, subkey)
+            B = control_gain(xt, U[0], subkey)
+            ut = jnp.sign(grad_e[LEADER, :] @ B) * args.power_density
+
+        elif args.behavior == 'egoistic':
+
+            grad_e = compute_group_empowerment_grad(xt, subkey)
+            B = control_gain(xt, U[0], subkey)
+            ut = jnp.sign(jnp.diag(grad_e @ B)) * args.power_density
+
+        elif args.behavior == 'passive':
+            ut = jnp.zeros(flock.control_dim)
+
+
+
+
         key, subkey = jax.random.split(key)
 
         xt = step(xt, ut, subkey)
 
         print(t, ut, e)
+
+        order_parameter_hist = order_parameter_hist.at[t].set(compute_order_parameter(xt, args.num_agents))
+        empowerment_hist = empowerment_hist.at[t].set(e)
         X = X.at[t+1].set(xt)
+
+
+    fig, ax = plt.subplots(1, 1)
+    for agent in range(flock.num_agents):
+        ax.plot(empowerment_hist[:, agent])
+    fig.tight_layout()
+    fig.savefig(output_dir / 'empowerment.png', dpi=300)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(order_parameter_hist)
+    fig.tight_layout()
+    fig.savefig(output_dir / 'order_parameter.png', dpi=300)
+    plt.close(fig)
+
+    ## save raw data
+    jnp.save(output_dir / 'empowerment_hist.npy', empowerment_hist)
+    jnp.save(output_dir / 'order_parameter_hist.npy', order_parameter_hist)
+    jnp.save(output_dir / 'trajectory.npy', X)
+
+    if args.behavior != 'leader':
+        LEADER = None
     
-    render_video(X, flock, path = 'vid.mp4')
+    render_video(X, flock, path = output_dir / 'vid.mp4', leader = LEADER)
+    return None
+
+
+if __name__ == '__main__':
+
+    parser = ArgumentParser()
+    parser.add_argument('--seed', type = int, default = 0)
+    parser.add_argument('--steps', type = int, default = 1000, help = 'Simulation timesteps')
+
+    ## Vicsek parameters
+    parser.add_argument('--num_agents', type = int, default = 100)
+    parser.add_argument('--grid_size', type = float, default = 10.0)
+    parser.add_argument('--radius', type = float, default = 0.5, help = 'Falloff radius for each agent')
+    parser.add_argument('--speed', type = float, default = 1.0, help = 'Speed of each bird')
+    parser.add_argument('--J', type = float, default = 0.1, help = 'How agressively to align birds')
+    parser.add_argument('--D', type = float, default = 0.0, help = 'Intensity of noise')
+
+    ## empowerment parameters
+    parser.add_argument('--horizon', type = int, default = 5, help = 'Planning horizon')
+    parser.add_argument('--power_density', type = float, default = 2.0)
+    parser.add_argument('--alpha', type = float, default = 0.01, help = 'IWF smoothing')
+    parser.add_argument('--observation_noise', type = float, default = 1.0)
+    parser.add_argument('--behavior', type = str, choices = ['leader', 'egoistic', 'passive'], default = 'egoistic')
+
+    args = parser.parse_args()
+
+    main(args)
+
+

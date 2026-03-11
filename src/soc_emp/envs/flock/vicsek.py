@@ -76,7 +76,6 @@ def make_step(flock: Vicsek):
         # ## hard cutoff
         # influence = (dist < neighbor_radius).astype(jnp.float32)
 
-
         ## angle difference
         angle_diff = a[None, :] - a[:, None]
 

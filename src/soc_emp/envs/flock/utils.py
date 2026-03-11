@@ -1,3 +1,4 @@
+import jax
 from jax import Array
 from jax import numpy as jnp
 
@@ -46,7 +47,6 @@ def wrap_position(pos: jnp.ndarray, L: float) -> jnp.ndarray:
     '''
     return jnp.mod(pos + L, 2.0 * L) - L
     # return pos - 2.0 * L * jnp.round(pos / (2.0 * L)) ## doesnt prevent nans
-
 
 def compute_order_parameter(state: Array, num_agents: int) -> Array:
     '''
