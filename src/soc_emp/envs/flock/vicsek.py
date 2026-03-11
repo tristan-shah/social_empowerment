@@ -91,7 +91,7 @@ def make_step(flock: Vicsek):
         noise = jnp.sqrt(2 * D * dt) * epsilon
 
         ## angle update
-        a = smooth_angle_wrap(a + torque * dt + noise)
+        a = smooth_angle_wrap(a + torque * dt + noise + action * dt)
 
         ## position update
         vel = speed * jnp.stack([jnp.cos(a), jnp.sin(a)], axis = 1)
