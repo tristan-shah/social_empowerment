@@ -6,8 +6,8 @@ import mujoco
 from mujoco import mjx
 import jax
 ## Enable higher precision (critical for second derivatives)
-jax.config.update('jax_enable_x64', True)
-jax.config.update('jax_traceback_filtering', 'off')
+# jax.config.update('jax_enable_x64', True)
+# jax.config.update('jax_traceback_filtering', 'off')
 
 from jax import numpy as jnp
 from jax import Array
@@ -109,6 +109,7 @@ class Dynamics:
         renderer.close()
         writer.close()
         return None
+    
 
 def make_step(dyn: Dynamics):
 
@@ -124,17 +125,42 @@ def make_step(dyn: Dynamics):
     
     return jax.jit(step)
 
-def make_unroll(step: callable):
 
-    def unroll(x0: Array, U: Array):
+def make_unroll(step: callable, stochastic: bool = False):
+    '''
+    Unrolls dynamical system with randomness
+    '''
 
-        def body_fn(x: Array, u: Array):
-            x_next = step(x, u)
-            return x_next, x_next
-        
-        _, X = jax.lax.scan(body_fn, x0, U)
-        X = jnp.concatenate([x0[None, :], X], axis = 0)
+    if stochastic:
+        '''
+        If the unroll should take a key for randomness
+        '''
+        def unroll(x0: Array, U: Array, keys: Array):
 
-        return X
+            def body_fn(x: Array, inputs: tuple):
+
+                u, key = inputs
+                x_next = step(x, u, key)
+
+                return x_next, x_next
+            
+            _, X = jax.lax.scan(body_fn, init = x0, xs = (U, keys))
+            X = jnp.concatenate([x0[None, :], X], axis = 0)
+
+            return X
+    else:
+        '''
+        If the unroll function is deterministic
+        '''
+        def unroll(x0: Array, U: Array):
+
+            def body_fn(x: Array, u: Array):
+                x_next = step(x, u)
+                return x_next, x_next
+            
+            _, X = jax.lax.scan(body_fn, x0, U)
+            X = jnp.concatenate([x0[None, :], X], axis = 0)
+
+            return X
     
     return jax.jit(unroll)

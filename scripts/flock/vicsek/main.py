@@ -8,39 +8,19 @@ from jax import numpy as jnp
 
 import matplotlib.pyplot as plt
 
+from soc_emp.dynamics import make_unroll
 from soc_emp.envs.flock.vicsek import Vicsek, make_reset, make_step
 from soc_emp.envs.flock.plot import render_image, render_video
 from soc_emp.envs.flock.utils import build_flock_state_matrix, compute_order_parameter
 from soc_emp.empowerment import compute_F_from_A_B, split_channel_matrix, iterative_waterfilling
 from soc_emp.utils import dict_to_string
 
-def make_unroll(step: callable):
-    '''
-    Unrolls dynamical system with randomness
-    '''
-
-    def unroll(x0: Array, U: Array, keys: Array):
-
-        def body_fn(x: Array, inputs: tuple):
-
-            u, key = inputs
-            x_next = step(x, u, key)
-
-            return x_next, x_next
-        
-        _, X = jax.lax.scan(body_fn, init = x0, xs = (U, keys))
-        X = jnp.concatenate([x0[None, :], X], axis = 0)
-
-        return X
-    
-    return jax.jit(unroll)
-
 
 def make_compute_group_empowerment(step: callable, state_matrix: Array, U: Array, power_density: Array, alpha: float, observation_noise: float):
 
     ## build helper functions
     linearize = jax.jit(jax.vmap(jax.jacfwd(step, argnums = (0, 1))))
-    unroll = make_unroll(step)
+    unroll = make_unroll(step, stochastic = True)
 
     ## extract relevant shapes
     horizon = U.shape[0]
@@ -92,7 +72,7 @@ def make_compute_empowerment(step: callable, U: Array, power_density: float):
 
     ## build helper functions
     linearize = jax.jit(jax.vmap(jax.jacfwd(step, argnums = (0, 1))))
-    unroll = make_unroll(step)
+    unroll = make_unroll(step, stochastic = True)
 
 
     ## extract relevant shapes
@@ -158,8 +138,8 @@ def main(args):
 
     xt = reset(key)
 
-    # ## save an image of the initial state
-    # render_image(xt, flock, show_radius = True).savefig(output_dir / 'initial_state.png', dpi = 300)
+    ## save an image of the initial state
+    render_image(xt, flock, show_radius = True).savefig(output_dir / 'initial_state.png', dpi = 300)
 
     compute_empowerment = make_compute_empowerment(step, U, args.power_density)
     compute_empowerment_grad = jax.jit(jax.jacfwd(compute_empowerment))
