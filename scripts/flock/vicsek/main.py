@@ -128,6 +128,7 @@ def main(args):
 
     ## empowerment arguments
     power_density = args.power_density * jnp.ones(args.num_agents)
+    # power_density = power_density.at[args.num_agents // 2:].set(0.5 * args.power_density)
     
     flock = Vicsek(args.num_agents, args.grid_size, args.radius, args.speed, args.J, args.D)
     reset = make_reset(flock)
@@ -168,13 +169,13 @@ def main(args):
                 
             grad_e = compute_group_empowerment_grad(xt, subkey)
             B = control_gain(xt, U[0], subkey)
-            ut = jnp.sign(grad_e[LEADER, :] @ B) * args.power_density
+            ut = jnp.sign(grad_e[LEADER, :] @ B) * power_density
 
         elif args.behavior == 'egoistic':
 
             grad_e = compute_group_empowerment_grad(xt, subkey)
             B = control_gain(xt, U[0], subkey)
-            ut = jnp.sign(jnp.diag(grad_e @ B)) * args.power_density
+            ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
 
         elif args.behavior == 'passive':
             ut = jnp.zeros(flock.control_dim)
@@ -182,7 +183,7 @@ def main(args):
         elif args.behavior == 'vanilla':
             grad_e = compute_empowerment_grad(xt, subkey)
             B = control_gain(xt, U[0], subkey)
-            ut = jnp.sign(grad_e @ B) * args.power_density
+            ut = jnp.sign(grad_e @ B) * power_density
             print(ut.shape)
 
         key, subkey = jax.random.split(key)
@@ -234,7 +235,7 @@ if __name__ == '__main__':
 
     ## Vicsek parameters
     parser.add_argument('--num_agents', type = int, default = 100)
-    parser.add_argument('--grid_size', type = float, default = 10.0)
+    parser.add_argument('--grid_size', type = float, default = 5.0)
     parser.add_argument('--radius', type = float, default = 0.5, help = 'Falloff radius for each agent')
     parser.add_argument('--speed', type = float, default = 1.0, help = 'Speed of each bird')
     parser.add_argument('--J', type = float, default = 0.1, help = 'How agressively to align birds')
