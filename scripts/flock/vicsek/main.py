@@ -162,13 +162,9 @@ def main(args):
         e = compute_group_empowerment(xt, subkey)
         grad_e = compute_group_empowerment_grad(xt, subkey)
         B = control_gain(xt, U[0], subkey)
-        # ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
 
         ## select action based on chosen behavior
-        if args.behavior == 'leader':
-                
-            # grad_e = compute_group_empowerment_grad(xt, subkey)
-            # B = control_gain(xt, U[0], subkey)
+        if args.behavior == 'leader':                
             ut = jnp.sign(grad_e[LEADER, :] @ B) * power_density
 
         elif args.behavior == 'feedback':
@@ -179,9 +175,6 @@ def main(args):
             ut = jnp.concat([ut_leader[None], ut_flock])
 
         elif args.behavior == 'egoistic':
-
-            # grad_e = compute_group_empowerment_grad(xt, subkey)
-            # B = control_gain(xt, U[0], subkey)
             ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
 
         elif args.behavior == 'passive':
@@ -189,12 +182,10 @@ def main(args):
 
         elif args.behavior == 'vanilla':
             grad_e = compute_empowerment_grad(xt, subkey) ## compute the standard empowerment gradient
-            # B = control_gain(xt, U[0], subkey)
             ut = jnp.sign(grad_e @ B) * power_density
-            print(ut.shape)
 
+        ## step forward the dynamics
         key, subkey = jax.random.split(key)
-
         xt = step(xt, ut, subkey)
 
         print(t, ut, e)
