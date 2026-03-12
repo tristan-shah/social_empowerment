@@ -162,27 +162,34 @@ def main(args):
         e = compute_group_empowerment(xt, subkey)
         grad_e = compute_group_empowerment_grad(xt, subkey)
         B = control_gain(xt, U[0], subkey)
-        ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
+        # ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
 
         ## select action based on chosen behavior
         if args.behavior == 'leader':
                 
-            grad_e = compute_group_empowerment_grad(xt, subkey)
-            B = control_gain(xt, U[0], subkey)
+            # grad_e = compute_group_empowerment_grad(xt, subkey)
+            # B = control_gain(xt, U[0], subkey)
             ut = jnp.sign(grad_e[LEADER, :] @ B) * power_density
+
+        elif args.behavior == 'feedback':
+
+            ## assume LEADER = 0
+            ut_leader = jnp.sign(grad_e[1:].sum(axis = 0) @ B[:, LEADER]) * power_density[LEADER]
+            ut_flock = jnp.sign(grad_e[LEADER, :] @ B[:, 1:]) * power_density[1:]
+            ut = jnp.concat([ut_leader[None], ut_flock])
 
         elif args.behavior == 'egoistic':
 
-            grad_e = compute_group_empowerment_grad(xt, subkey)
-            B = control_gain(xt, U[0], subkey)
+            # grad_e = compute_group_empowerment_grad(xt, subkey)
+            # B = control_gain(xt, U[0], subkey)
             ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
 
         elif args.behavior == 'passive':
             ut = jnp.zeros(flock.control_dim)
 
         elif args.behavior == 'vanilla':
-            grad_e = compute_empowerment_grad(xt, subkey)
-            B = control_gain(xt, U[0], subkey)
+            grad_e = compute_empowerment_grad(xt, subkey) ## compute the standard empowerment gradient
+            # B = control_gain(xt, U[0], subkey)
             ut = jnp.sign(grad_e @ B) * power_density
             print(ut.shape)
 
@@ -219,7 +226,7 @@ def main(args):
     jnp.save(output_dir / 'order_parameter_hist.npy', order_parameter_hist)
     jnp.save(output_dir / 'trajectory.npy', X)
 
-    if args.behavior != 'leader':
+    if args.behavior not in ['leader', 'feedback']:
         LEADER = None
     
     render_video(X, flock, path = output_dir / 'vid.mp4', leader = LEADER)
@@ -246,7 +253,7 @@ if __name__ == '__main__':
     parser.add_argument('--power_density', type = float, default = 2.0)
     parser.add_argument('--alpha', type = float, default = 0.01, help = 'IWF smoothing')
     parser.add_argument('--observation_noise', type = float, default = 1.0)
-    parser.add_argument('--behavior', type = str, choices = ['leader', 'egoistic', 'passive', 'vanilla'], default = 'egoistic')
+    parser.add_argument('--behavior', type = str, choices = ['leader', 'egoistic', 'passive', 'vanilla', 'feedback'], default = 'egoistic')
 
     args = parser.parse_args()
 
