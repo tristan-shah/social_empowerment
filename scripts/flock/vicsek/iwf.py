@@ -1,137 +1,96 @@
-from functools import partial
-
 import jax
 from jax import numpy as jnp
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 
 from soc_emp.dynamics import make_unroll
 from soc_emp.envs.flock.vicsek import Vicsek, make_reset, make_step
-from soc_emp.envs.flock.utils import decode_state, minimum_image_diff, build_flock_state_matrix
-from soc_emp.envs.flock.plot import render_video
+from soc_emp.envs.flock.utils import build_flock_state_matrix
+from soc_emp.empowerment import compute_F_from_A_B, split_channel_matrix, waterfilling_operator
 
-
-
-from jax import Array
-def make_propagate(step: callable, stochastic: bool = False):
-    '''
-    Unrolls dynamical system with randomness
-    '''
-
-    if stochastic:
-        '''
-        If the propagate should take a key for randomness
-        '''
-        def propagate(x0: Array, U: Array, keys: Array):
-
-            def body_fn(x: Array, inputs: tuple):
-
-                u, key = inputs
-                x_next = step(x, u, key)
-
-                return x_next, None
-            
-            xT, _ = jax.lax.scan(body_fn, init = x0, xs = (U, keys))
-
-            return xT
-    else:
-        '''
-        If the propagate function is deterministic
-        '''
-        def propagate(x0: Array, U: Array):
-
-            def body_fn(x: Array, u: Array):
-                x_next = step(x, u)
-                return x_next, x_next
-            
-            xT = jax.lax.scan(body_fn, x0, U)
-
-            return xT
-    
-    return jax.jit(propagate)
-
-
-
-# import matplotlib.pyplot as plt
-# fig, ax = plt.subplots(1, 1)
-# fig.suptitle(f'Connectivity of Flock With {max_neighors} Neighbors')
-# ax.set_aspect('equal')
-# ax.set_xlim(-grid_size, grid_size)
-# ax.set_ylim(-grid_size, grid_size)
-# ax.scatter(x, y)
-
-# # Add a circle at each point
-# for (x, y) in pos:
-#     circle = patches.Circle((x, y), radius=neighbor_radius, fill=False, edgecolor='green', alpha = 0.5)
-#     ax.add_patch(circle)
-
-# for i in range(num_agents):
-
-#     xi, yi = pos[i]
-
-#     for j in neighbor_idx[i]:
-#         xj, yj = pos[j]
-
-#         ax.plot([xi, xj], [yi, yj], color = 'red', alpha = 0.5)
-
-# fig.tight_layout()
-# fig.savefig('flock.png', dpi = 300)
-# plt.show()
 
 if __name__ == '__main__':
 
     seed = 0
     key = jax.random.key(seed)
-    num_agents = 30
-    grid_size = 5.0
-    neighbor_radius = 0.5
+    num_agents = 100
+    grid_size = 2.0
+    neighbor_radius = 4.0
     speed = 1.0
     J = 0.1
     D = 0.0
     dt = 0.05
 
-    max_neighors = 3
+    alpha = 0.01
+    observation_noise = 1.0
+    horizon = 10
+    power_density = jnp.ones(num_agents)
+    power = horizon * power_density ## total probing power depends on horizon
 
-    horizon = 5
+    state_type = 'full' ## this is the only numerically stable state_type
+    state_matrix = build_flock_state_matrix(num_agents, state_type)
 
     flock = Vicsek(num_agents, grid_size, neighbor_radius, speed, J, D, dt)
 
+    agent_control_dim = flock.control_dim // num_agents
+    message_dim = horizon * agent_control_dim ## this is the length of the message from each agent
+
+
+
     reset = make_reset(flock)
     step = make_step(flock)
-    propagate = make_propagate(step, stochastic = True)
+    unroll = make_unroll(step, stochastic = True)
+    linearize = jax.jit(jax.vmap(jax.jacfwd(step, argnums = (0, 1))))
 
-    x0 = reset(key)
-
-    ut = jnp.zeros(flock.control_dim)
-
-    ## nominal control sequence
-    ## U[t, i] is the control of agent i at time t
+    xt = reset(key)
     U = jnp.zeros((horizon, flock.control_dim))
 
-    key, subkey = jax.random.split(key)
-    keys = jax.random.split(subkey, horizon)
 
-    x, y, a = decode_state(x0, num_agents)
+    keys = jax.random.split(key, horizon)
+    X = unroll(xt, U, keys)
+    A, B = linearize(X[:-1], U, keys)
+    F = compute_F_from_A_B(A, B)
+    F = jnp.permute_dims(F, (1, 0, 2))
+    F_agent, F_noise = split_channel_matrix(F, num_agents)
 
-    pos = jnp.stack([x, y], axis = 1)
 
-    ## compute position differences
-    raw_diff = pos[:, None, :] - pos[None, :, :]
-    diff_mi = minimum_image_diff(raw_diff, flock.grid_size)
-    dist = jnp.linalg.norm(diff_mi + 1e-10, axis = 2)
-    ## determine closest neighbors
-    neighbor_idx = jnp.argsort(dist, axis = 1)[:, 1:max_neighors+1]
+    ## selects agent's own state from the big sensitivity matrix
+    F_agent = jnp.take_along_axis(
+        F_agent,
+        state_matrix[:, :, None],
+        axis = 1
+    )
 
-    ## indices of each agents state: state_matrix[i] -> indices of the ith agent
-    ## state_matrix is (num_agents x agent_state_dim)
-    state_matrix = build_flock_state_matrix(num_agents, 'full')
+    ## noise in the agents state comes from the actions of other agents
+    F_noise = jnp.take_along_axis(
+        F_noise,
+        state_matrix[:, None, :, None],
+        axis = 2
+    )
+
+
+    print(F_agent.shape, F_noise.shape)
+
+
+    # ## This is the initial covariance matrix for each agent. Assume diagonal
+    S = jax.vmap(jnp.diag)(power[:, None] * jnp.ones((num_agents, message_dim)) / message_dim)
+    # ## this is the observation covariance matrix for each agent. Assume identity scaled by a scalar
+    S_z = jnp.eye(state_matrix.shape[1]) * observation_noise 
+
+
+    iterations = 10
+    e_hist = jnp.zeros((iterations, num_agents))
+
+    for i in range(iterations):
+
+        e, S_ = waterfilling_operator(F_agent, F_noise, S, S_z, power)
+        S = alpha * S + (1 - alpha) * S_
+
+        e_hist = e_hist.at[i].set(e)
+
+    fig, ax = plt.subplots(1, 1)
     
-    ## propagation function
-    F = partial(propagate, x0, keys = keys)
-    xt, jvp = jax.linearize(F, U)
+    for agent in range(num_agents):
+        ax.plot(e_hist[:, agent])
 
-
-    ## How to extract sensitivity of each agents state to its own actions?
-
-    # e = jnp.zeros_like(U).at[0, 0].set(1.0)
-    # print(jvp(e))
+    fig.savefig('iwf.png', dpi = 300)
+    plt.show()

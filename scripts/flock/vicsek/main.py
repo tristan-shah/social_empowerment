@@ -87,7 +87,6 @@ def make_compute_empowerment(step: callable, U: Array, power_density: float):
         A, B = linearize(X[:-1], U, keys)
         F = compute_F_from_A_B(A, B)
         F = jnp.permute_dims(F, (1, 0, 2))
-        print(F.shape)
 
         ## S is the covariance matrix of the final state.
         S = einsum(F, F, 'x1 T u, x2 T u -> x1 x2')
@@ -129,7 +128,6 @@ def main(args):
 
     ## empowerment arguments
     power_density = args.power_density * jnp.ones(args.num_agents)
-
     
     flock = Vicsek(args.num_agents, args.grid_size, args.radius, args.speed, args.J, args.D)
     reset = make_reset(flock)
