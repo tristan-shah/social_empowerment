@@ -265,14 +265,17 @@ def main(args):
     print(f'Horizon = {args.horizon}')
     print(f'Alpha = {args.alpha}')
     print(f'Noise = {args.observation_noise}')
-    print(f'Batch Size = {args.batch_size}')
+    print(f'Batch Size = {args.device_batch_size}')
     print(f'State Type = {args.state_type}')
     print(f'Control Type = {args.control_type}')
 
-    ## sweep power levels
-    power_density_levels = jnp.linspace(0.5, 3.0, args.resolution)
+    key = jax.random.key(args.seed)
 
-    name = f'state_type={args.state_type}-horizon={args.horizon}-alpha={args.alpha}-observation_noise={args.observation_noise}-stiffness={args.stiffness}-damping={args.damping}-steps={args.steps}'
+    ## sweep power levels
+    # power_density_levels = jnp.linspace(0.5, 3.0, args.resolution)
+    power_density_levels = jnp.linspace(args.min_power, 3.0, args.resolution)
+
+    name = f'state_type={args.state_type}-horizon={args.horizon}-alpha={args.alpha}-observation_noise={args.observation_noise}-stiffness={args.stiffness}-damping={args.damping}-steps={args.steps}-min_power={args.min_power}'
     output_dir = Path(f'results/linked_pendulum/control_type={args.control_type}') / name
     output_dir.mkdir(parents = True, exist_ok = True)
 
@@ -348,15 +351,6 @@ def main(args):
         ## evaluate the outcome of each simulation in the batch
         batch_outcomes = batch_get_linked_pendulum_outcome(batch_X)
 
-
-        ## evaluate outcomes
-        print()
-        print(f'Starting batch evaluation {batch_idx}')
-        batch_X = batch_X.reshape(effective_batch_size, args.steps + 1, dyn.state_dim)
-        ## evaluate the outcome of each simulation in the batch
-        batch_outcomes = batch_get_linked_pendulum_outcome(batch_X)
-
-
         batch_outcomes = batch_outcomes.reshape(-1)[:actual_effective_batch_size]
         batch_I = I.reshape(-1)[start_idx:end_idx]
         batch_J = J.reshape(-1)[start_idx:end_idx]
@@ -407,6 +401,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--device_batch_size', type = int, default = 50)
     parser.add_argument('--resolution', type = int, default = 100)
+    parser.add_argument('--min_power', type = float, default = 0.1)
     args = parser.parse_args()
 
     main(args)
