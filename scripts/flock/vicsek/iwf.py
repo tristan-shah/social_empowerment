@@ -21,7 +21,7 @@ if __name__ == '__main__':
     dt = 0.05
 
     alpha = 0.01
-    observation_noise = 1.0
+    observation_noise = 0.01 #1.0
     horizon = 10
     power_density = jnp.ones(num_agents)
     power = horizon * power_density ## total probing power depends on horizon
