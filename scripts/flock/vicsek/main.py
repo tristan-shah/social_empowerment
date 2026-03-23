@@ -164,7 +164,7 @@ def main(args):
         B = control_gain(xt, U[0], subkey)
 
         ## select action based on chosen behavior
-        if args.behavior == 'leader':                
+        if args.behavior == 'leader':
             ut = jnp.sign(grad_e[LEADER, :] @ B) * power_density
 
         elif args.behavior == 'feedback':
@@ -176,6 +176,9 @@ def main(args):
 
         elif args.behavior == 'egoistic':
             ut = jnp.sign(jnp.diag(grad_e @ B)) * power_density
+
+        elif args.behavior == 'collective':
+            ut = jnp.sign(jnp.sum(grad_e, axis = 0) @ B) * power_density
 
         elif args.behavior == 'passive':
             ut = jnp.zeros(flock.control_dim)
@@ -227,6 +230,8 @@ def main(args):
 
 if __name__ == '__main__':
 
+    BEHAVIORS = ['leader', 'egoistic', 'passive', 'vanilla', 'feedback', 'collective']
+
     parser = ArgumentParser()
     parser.add_argument('--seed', type = int, default = 0)
     parser.add_argument('--steps', type = int, default = 1000, help = 'Simulation timesteps')
@@ -244,7 +249,7 @@ if __name__ == '__main__':
     parser.add_argument('--power_density', type = float, default = 2.0)
     parser.add_argument('--alpha', type = float, default = 0.01, help = 'IWF smoothing')
     parser.add_argument('--observation_noise', type = float, default = 1.0)
-    parser.add_argument('--behavior', type = str, choices = ['leader', 'egoistic', 'passive', 'vanilla', 'feedback'], default = 'egoistic')
+    parser.add_argument('--behavior', type = str, choices = BEHAVIORS, default = 'egoistic')
 
     args = parser.parse_args()
 
