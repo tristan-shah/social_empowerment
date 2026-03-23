@@ -276,8 +276,6 @@ def main(args):
     output_dir = Path(f'results/linked_pendulum/control_type={args.control_type}') / name
     output_dir.mkdir(parents = True, exist_ok = True)
 
-
-
     ## create indexes for the heatmap
     I, J = jnp.meshgrid(jnp.arange(args.resolution), jnp.arange(args.resolution), indexing='ij')
     ## all possible combinations of powers
