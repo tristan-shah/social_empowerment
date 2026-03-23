@@ -7,8 +7,8 @@ import numpy as np
 
 from soc_emp import Dynamics
 from soc_emp.utils import smooth_angle_wrap
-# from sweep_power import plot_outcome_hetamap
-from sweep_horizon import plot_outcome_hetamap
+from sweep_power import plot_outcome_hetamap
+# from sweep_horizon import plot_outcome_hetamap
 
 
 def get_linked_pendulum_outcome(traj: Array):
@@ -73,12 +73,12 @@ def load_horizon_data(power: float):
     return outcomes, pair_map, trajectories
 
 
-
 def load_power_data(horizon: int):
 
-    assert horizon in [80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
+    # assert horizon in [80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
 
     path = Path(f'results/sweep_power/seed=10_horizon={horizon}_alpha=0.01_observation_noise=1.0')
+    # path = Path(f'results/sweep_power_stop_grad/resolution=100_seed=0_horizon={horizon}_alpha=0.01_observation_noise=1.0_stiffness=3.0')
 
     powers = jnp.load(path / 'powers.npy')
     outcomes = jnp.load(path / 'outcomes.npy')
@@ -94,40 +94,47 @@ if __name__ == '__main__':
     print(f'Timestep = {dyn.mjx_model.opt.timestep}')
 
 
+    horizon = 60
+
     # outcomes, pair_map, trajectories = load_horizon_data(1.1)
-    pair_map, outcomes = load_power_data(180)
+    pair_map, outcomes = load_power_data(horizon)
 
-    left = pair_map[:, :, 0]
-    right = pair_map[:, :, 1]
-    diff = right - left
+    print(outcomes)
 
-    unique_diff, count = jnp.unique_counts(diff)
-    freq = jnp.zeros((count.shape[0], 4))
+    powers = jnp.linspace(0.5, 3.0, outcomes.shape[0])
+    plot_outcome_hetamap(outcomes, horizon, powers, dt = dyn.mjx_model.opt.timestep, path = 'test.png')
 
-    for (i, d) in enumerate(unique_diff):
-        mask = diff == d
+    # left = pair_map[:, :, 0]
+    # right = pair_map[:, :, 1]
+    # diff = right - left
 
-        num_outcomes = jnp.sum(mask)
+    # unique_diff, count = jnp.unique_counts(diff)
+    # freq = jnp.zeros((count.shape[0], 4))
 
-        for k in range(4):
-            print(k)
-            freq = freq.at[i, k].set(jnp.sum(outcomes[mask] == k) / num_outcomes)
-            print(outcomes[mask])
+    # for (i, d) in enumerate(unique_diff):
+    #     mask = diff == d
+
+    #     num_outcomes = jnp.sum(mask)
+
+    #     for k in range(4):
+    #         print(k)
+    #         freq = freq.at[i, k].set(jnp.sum(outcomes[mask] == k) / num_outcomes)
+    #         print(outcomes[mask])
 
 
-    from scipy.ndimage import gaussian_filter1d
+    # from scipy.ndimage import gaussian_filter1d
 
-    # smooth each outcome curve
-    freq_smooth = gaussian_filter1d(np.array(freq), sigma=2, axis=0)
+    # # smooth each outcome curve
+    # freq_smooth = gaussian_filter1d(np.array(freq), sigma=2, axis=0)
 
-    fig, ax = plt.subplots(4, 1)
-    ax[0].set_ylabel('')
-    ax[3].set_xlabel('Power Difference')
+    # fig, ax = plt.subplots(4, 1)
+    # ax[0].set_ylabel('')
+    # ax[3].set_xlabel('Power Difference')
 
-    ax[0].plot(unique_diff, freq_smooth[:, 0])
-    ax[1].plot(unique_diff, freq_smooth[:, 1])
-    ax[2].plot(unique_diff, freq_smooth[:, 2])
-    ax[3].plot(unique_diff, freq_smooth[:, 3])
+    # ax[0].plot(unique_diff, freq_smooth[:, 0])
+    # ax[1].plot(unique_diff, freq_smooth[:, 1])
+    # ax[2].plot(unique_diff, freq_smooth[:, 2])
+    # ax[3].plot(unique_diff, freq_smooth[:, 3])
 
-    fig.tight_layout()
-    plt.show()
+    # fig.tight_layout()
+    # plt.show()
