@@ -11,16 +11,24 @@ from soc_emp.utils import smooth_angle_wrap
 if __name__ == '__main__':
     print(f'GPU devices: {jax.devices()}')
     ## hyperparams
-    seed = 123123
+    seed = 0
     key = jax.random.key(seed)
-    steps = 2000
+    steps = 1500
     alpha = 0.01
-    horizon = 100
-    observation_noise = 1.0
-    stiffness = 0.0 #3.0
-    damping = 0.0 #0.1
 
-    power = jnp.array([0.1, 20.0])
+    ## egoistic
+    horizon = 54
+    observation_noise = 1.0
+    stiffness = 3.0
+    damping = 0.1
+    power = jnp.array([1.2, 1.5])
+
+    # ## master servent
+    # horizon = 100
+    # observation_noise = 1.0
+    # stiffness = 10.0
+    # damping = 1.0
+    # power = jnp.array([0.1, 5.0])
 
     # load dynamics
     xml_path = 'xml/custom/linked_pendulums.xml'
@@ -71,18 +79,18 @@ if __name__ == '__main__':
             ## choose a random action on the first step
             random_signs = jax.random.choice(sub_key, jnp.array([-1, 1]), shape=(dyn.control_dim,))
             ut = power * random_signs
-        # else:
-        #     ## choose an empowerment maximizing action
-        #     _, B = dyn.linearize(xt, U[0])
-        #     ut = compute_multiagent_control(grad_E, B, power, key)
         else:
-            '''
-            Master servant
-            '''
+            ## choose an empowerment maximizing action
             _, B = dyn.linearize(xt, U[0])
-            ## choose an action that maximizes the empowerment of agent 0
-            ## gradient of agent 0's empowerment
-            ut = jnp.sign(grad_E[0, :] @ B) * power
+            ut = compute_multiagent_control(grad_E, B, power, key)
+        # else:
+        #     '''
+        #     Master servant
+        #     '''
+        #     _, B = dyn.linearize(xt, U[0])
+        #     ## choose an action that maximizes the empowerment of agent 0
+        #     ## gradient of agent 0's empowerment
+        #     ut = jnp.sign(grad_E[0, :] @ B) * power
 
         ## step the dynamics and record the result
         xt = dyn.step(xt, ut)
@@ -99,8 +107,8 @@ if __name__ == '__main__':
     ## plot empowerment
     ax[0].plot(empowerment[:, 0], label = 'Left Agent', color = 'blue')
     ax[0].plot(empowerment[:, 1], label = 'Right Agent', color = 'orange')
-    ax[0].set_ylabel('Empowerment', fontsize = 14)
-    ax[0].tick_params(axis = 'both', labelsize = 12)
+    ax[0].set_ylabel('Empowerment')
+    ax[0].tick_params(axis = 'both')
     ax[0].legend(fontsize = 12)
     ax[0].set_xticks([])
     ax[0].set_xlim(0, steps)
@@ -110,19 +118,22 @@ if __name__ == '__main__':
     agent_1_angle = jnp.abs(smooth_angle_wrap(X[:, 1] - jnp.pi))
     ax[1].plot(agent_0_angle, color = 'blue')
     ax[1].plot(agent_1_angle, color = 'orange')
-    ax[1].set_ylabel('Angle From Top', fontsize = 14)
-    ax[1].tick_params(axis = 'both', labelsize = 12)
+    ax[1].set_ylabel('Angle From Top')
+    ax[1].tick_params(axis = 'both')
+    ax[1].set_xticks([])
     ax[1].set_xlim(0, steps)
-    ax[1].set_xlabel('Interaction Time (s)', fontsize = 14)
+    
+    ax[2].plot(iterations)
+    ax[2].set_ylabel('IWF Iterations')
+    ax[2].set_xlabel('Interaction Time (s)')
+    ax[2].set_xlim(0, steps)
 
     n_ticks = 5
     positions = np.linspace(0, steps - 1, n_ticks)
     labels = np.linspace(0.0, steps * dt, n_ticks)
-
-    ax[1].set_xticks(positions)
-    ax[1].set_xticklabels(labels, rotation = 'horizontal')
+    ax[2].set_xticks(positions)
+    ax[2].set_xticklabels(labels, rotation = 'horizontal')
     
-    ax[2].plot(iterations)
 
     fig.tight_layout()
     fig.savefig(run_name + '.png', dpi = 300)
