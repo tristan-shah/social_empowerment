@@ -7,19 +7,19 @@ import matplotlib.pyplot as plt
 
 from soc_emp import Dynamics
 from soc_emp.dynamics import make_step
-from sweep_power import plot_outcome_hetamap, get_linked_pendulum_outcome, make_compute_group_empowerment, build_linked_pendulum_state_matrix, set_tendon_properties
+from sweep_power import get_linked_pendulum_outcome, make_compute_group_empowerment, build_linked_pendulum_state_matrix, set_tendon_properties
 
 if __name__ == '__main__':
 
     state_type = 'angle'
     control_type = 'egoistic'
-    horizon = 50
+    horizon = 150
     dt = 0.01
     stiffness = 3.0
     damping = 0.1
     alpha = 0.01
     observation_noise = 1.0
-    N = 10
+    N = 1
 
     root = Path(f'results/linked_pendulum/control_type={control_type}/state_type={state_type}-horizon={horizon}-alpha={alpha}-observation_noise={observation_noise}-stiffness={stiffness}-damping={damping}-steps=2000-min_power=0.1')
 
@@ -79,14 +79,19 @@ if __name__ == '__main__':
         empowerment_outcome = empowerment_outcome.at[batch_I, batch_J].set(e)
         print(f'batch {batch_idx}: placed {actual_size} empowerments at [{start_idx}:{end_idx}]')
 
+    outcomes = jnp.load(root / 'outcomes.npy')
+
     # empowerment_outcome: (resolution, resolution, 2) — agent 0 is left, agent 1 is right
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    from matplotlib.colors import ListedColormap, BoundaryNorm
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    tick_spacing = max(1, resolution // 10)
+    ticks = jnp.unique(jnp.concatenate([jnp.arange(0, resolution, tick_spacing), jnp.array([resolution - 1])]))
+
     titles = ['Left Agent Empowerment', 'Right Agent Empowerment']
-    for agent_idx, (ax, title) in enumerate(zip(axes, titles)):
+    for agent_idx, (ax, title) in enumerate(zip(axes[:2], titles)):
         img = ax.imshow(empowerment_outcome[:, :, agent_idx], origin='lower', aspect='auto')
-        plt.colorbar(img, ax=ax)
-        tick_spacing = max(1, resolution // 10)
-        ticks = jnp.unique(jnp.concatenate([jnp.arange(0, resolution, tick_spacing), jnp.array([resolution - 1])]))
+        cbar = plt.colorbar(img, ax=ax)
+        cbar.set_label('Empowerment (nats)')
         ax.set_xticks(ticks)
         ax.set_xticklabels([f'{v:.2f}' for v in powers[ticks]], rotation=90)
         ax.set_yticks(ticks)
@@ -94,6 +99,23 @@ if __name__ == '__main__':
         ax.set_xlabel('Right Agent Power')
         ax.set_ylabel('Left Agent Power')
         ax.set_title(title)
+
+    colors = ['lightgray', 'blue', 'orange', 'green']
+    labels = ['Neither', 'Left', 'Right', 'Both']
+    cmap = ListedColormap(colors)
+    norm = BoundaryNorm(boundaries=[-0.5, 0.5, 1.5, 2.5, 3.5], ncolors=4)
+    img = axes[2].imshow(outcomes, cmap=cmap, norm=norm, origin='lower', aspect='auto')
+    axes[2].set_xticks(ticks)
+    axes[2].set_xticklabels([f'{v:.2f}' for v in powers[ticks]], rotation=90)
+    axes[2].set_yticks(ticks)
+    axes[2].set_yticklabels([f'{v:.2f}' for v in powers[ticks]])
+    axes[2].set_xlabel('Right Agent Power')
+    axes[2].set_ylabel('Left Agent Power')
+    axes[2].set_title('Outcome')
+    cbar = plt.colorbar(img, ax=axes[2], ticks=[0, 1, 2, 3])
+    cbar.ax.set_yticklabels(labels)
+    cbar.set_label('Pendulum Upright (|θ - π| ≤ 1.0 rad)')
+
     plt.tight_layout()
     fig.savefig(root / f'N={N}-empowerment_heatmap.png', dpi=300)
     plt.close(fig)
