@@ -273,9 +273,9 @@ def main(args):
 
     ## sweep power levels
     # power_density_levels = jnp.linspace(0.5, 3.0, args.resolution)
-    power_density_levels = jnp.linspace(args.min_power, 3.0, args.resolution)
+    power_density_levels = jnp.linspace(args.min_power, args.max_power, args.resolution)
 
-    name = f'state_type={args.state_type}-horizon={args.horizon}-alpha={args.alpha}-observation_noise={args.observation_noise}-stiffness={args.stiffness}-damping={args.damping}-steps={args.steps}-min_power={args.min_power}'
+    name = f'state_type={args.state_type}-horizon={args.horizon}-alpha={args.alpha}-observation_noise={args.observation_noise}-stiffness={args.stiffness}-damping={args.damping}-steps={args.steps}-min_power={args.min_power}-max_power={args.max_power}'
     output_dir = Path(f'results/linked_pendulum/control_type={args.control_type}') / name
     output_dir.mkdir(parents = True, exist_ok = True)
 
@@ -402,6 +402,7 @@ if __name__ == '__main__':
     parser.add_argument('--device_batch_size', type = int, default = 50)
     parser.add_argument('--resolution', type = int, default = 100)
     parser.add_argument('--min_power', type = float, default = 0.1)
+    parser.add_argument('--max_power', type = float, default = 3.0)
     args = parser.parse_args()
 
     main(args)
