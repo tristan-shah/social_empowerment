@@ -26,4 +26,4 @@ python scripts/flock/vicsek/main.py \
     --power_density 2.0 \
     --alpha 0.01 \
     --observation_noise 1.0 \
-    --behavior passive
+    --behavior leader
