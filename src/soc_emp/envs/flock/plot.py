@@ -347,6 +347,186 @@ def render_image(state: Array, flock: Flock, show_radius: bool = False, leader: 
 #     return ani
 
 
+# def render_video(
+#     states: Array,
+#     flock: Flock,
+#     fps: int = 50,
+#     path: str | None = None,
+#     dpi: int = 200,
+#     leader: int | None = None,
+#     trail_len: int = 40,
+#     show_heads: bool = True,
+#     show_arrows: bool = False,
+#     arrow_scale: float = 70,
+#     point_size: float = 10,
+#     trail_alpha: float = 0.7,
+#     head_alpha: float = 1.0,
+#     linewidth: float = 0.45,
+#     publication_style: bool = True,
+# ) -> animation.FuncAnimation:
+#     """
+#     Render Vicsek trajectories with TRUE fading trails.
+
+#     FIXED:
+#     - trails fade from old -> new
+#     - breaks trails at periodic boundary crossings
+#     - avoids fake horizontal/vertical artifact lines
+#     """
+#     from matplotlib.collections import LineCollection
+
+#     states_np = np.asarray(states)
+#     T, n = len(states_np), flock.num_agents
+
+#     s = states_np.reshape(T, n, 3)
+#     all_x = s[:, :, 0]
+#     all_y = s[:, :, 1]
+#     all_a = s[:, :, 2]
+#     all_cx = np.cos(all_a)
+#     all_cy = np.sin(all_a)
+
+#     fig, ax = plt.subplots(figsize=(8, 8), facecolor="white")
+#     _setup_ax(ax, flock.grid_size)
+
+#     if publication_style:
+#         ax.set_facecolor("white")
+#         for artist in list(ax.patches):
+#             artist.remove()
+
+#     fig.tight_layout(pad=0)
+
+#     base_color = np.array([0.10, 0.20, 0.45])
+#     leader_color = np.array([0.85, 0.15, 0.15])
+
+#     head_colors = np.tile(base_color, (n, 1))
+#     trail_colors = np.tile(base_color, (n, 1))
+#     if leader is not None:
+#         head_colors[leader] = leader_color
+#         trail_colors[leader] = leader_color
+
+#     box_width = 2 * flock.grid_size
+
+#     def _segment_periodic_path(x: np.ndarray, y: np.ndarray):
+#         dx = np.abs(np.diff(x))
+#         dy = np.abs(np.diff(y))
+#         jumps = (dx > 0.5 * box_width) | (dy > 0.5 * box_width)
+
+#         x_plot = x.astype(float).copy()
+#         y_plot = y.astype(float).copy()
+
+#         x_plot[1:][jumps] = np.nan
+#         y_plot[1:][jumps] = np.nan
+#         return x_plot, y_plot
+
+#     def _make_fading_segments(x: np.ndarray, y: np.ndarray, color: np.ndarray):
+#         """
+#         Convert a trajectory into short line segments with fading alpha.
+#         """
+#         points = np.column_stack([x, y])
+
+#         # Build line segments between consecutive points
+#         segments = np.stack([points[:-1], points[1:]], axis=1)
+
+#         # Remove segments containing NaNs (from periodic wrap breaks)
+#         valid = ~np.isnan(segments).any(axis=(1, 2))
+#         segments = segments[valid]
+
+#         if len(segments) == 0:
+#             return segments, np.empty((0, 4))
+
+#         # Oldest -> newest fade
+#         alphas = np.linspace(0.02, trail_alpha, len(segments))
+#         colors = np.tile(np.r_[color, 1.0], (len(segments), 1))
+#         colors[:, 3] = alphas
+
+#         return segments, colors
+
+#     # --- one fading trail collection per agent ---
+#     trail_collections = []
+#     for i in range(n):
+#         lc = LineCollection([], linewidths=linewidth, zorder=1, capstyle="round")
+#         ax.add_collection(lc)
+#         trail_collections.append(lc)
+
+#     # --- current positions ---
+#     if show_heads:
+#         heads = ax.scatter(
+#             all_x[0], all_y[0],
+#             s=point_size,
+#             c=head_colors,
+#             alpha=head_alpha,
+#             edgecolors="none",
+#             zorder=3,
+#         )
+#     else:
+#         heads = None
+
+#     # --- optional heading arrows ---
+#     if show_arrows:
+#         q = ax.quiver(
+#             all_x[0], all_y[0], all_cx[0], all_cy[0],
+#             color=head_colors,
+#             scale=arrow_scale,
+#             width=0.0025,
+#             alpha=0.35,
+#             zorder=2,
+#         )
+#     else:
+#         q = None
+
+#     def update(frame):
+#         start = max(0, frame - trail_len)
+#         artists = []
+
+#         # update fading trails
+#         for i, lc in enumerate(trail_collections):
+#             x_traj = all_x[start:frame + 1, i]
+#             y_traj = all_y[start:frame + 1, i]
+
+#             x_plot, y_plot = _segment_periodic_path(x_traj, y_traj)
+#             segments, colors = _make_fading_segments(x_plot, y_plot, trail_colors[i])
+
+#             lc.set_segments(segments)
+#             lc.set_color(colors)
+#             artists.append(lc)
+
+#         # update heads
+#         if heads is not None:
+#             heads.set_offsets(np.column_stack([all_x[frame], all_y[frame]]))
+#             artists.append(heads)
+
+#         # update arrows
+#         if q is not None:
+#             q.set_offsets(np.column_stack([all_x[frame], all_y[frame]]))
+#             q.set_UVC(all_cx[frame], all_cy[frame])
+#             artists.append(q)
+
+#         return tuple(artists)
+
+#     ani = animation.FuncAnimation(
+#         fig,
+#         update,
+#         frames=T,
+#         interval=1000 // fps,
+#         blit=False,
+#     )
+
+#     if path is not None:
+#         writer = animation.FFMpegWriter(
+#             fps=fps,
+#             bitrate=-1,
+#             extra_args=[
+#                 "-vcodec", "libx264",
+#                 "-crf", "16",
+#                 "-preset", "slow",
+#                 "-pix_fmt", "yuv420p",
+#                 "-threads", "0",
+#             ],
+#         )
+#         ani.save(path, writer=writer, dpi=dpi)
+#         plt.close(fig)
+
+#     return ani
+
 def render_video(
     states: Array,
     flock: Flock,
@@ -358,19 +538,25 @@ def render_video(
     show_heads: bool = True,
     show_arrows: bool = False,
     arrow_scale: float = 70,
-    point_size: float = 10,
-    trail_alpha: float = 0.7,
+    point_size: float = 18,
+    trail_alpha: float = 0.55,
     head_alpha: float = 1.0,
-    linewidth: float = 0.45,
+    linewidth: float = 0.7,
     publication_style: bool = True,
+    scalars: np.ndarray | None = None,
 ) -> animation.FuncAnimation:
     """
     Render Vicsek trajectories with TRUE fading trails.
 
-    FIXED:
+    Supports optional per-agent scalar coloring:
+        scalars.shape == (num_agents,)
+
+    Notes
+    -----
     - trails fade from old -> new
     - breaks trails at periodic boundary crossings
     - avoids fake horizontal/vertical artifact lines
+    - uses a small white-safe palette instead of a washed-out colormap
     """
     from matplotlib.collections import LineCollection
 
@@ -394,11 +580,66 @@ def render_video(
 
     fig.tight_layout(pad=0)
 
-    base_color = np.array([0.10, 0.20, 0.45])
-    leader_color = np.array([0.85, 0.15, 0.15])
+    # ------------------------------------------------------------------
+    # White-safe fixed palette (dark/mid-tone only)
+    # ------------------------------------------------------------------
+    # palette = np.array([
+    #     [0.10, 0.18, 0.42, 1.0],  # navy
+    #     [0.00, 0.35, 0.58, 1.0],  # steel blue
+    #     [0.00, 0.45, 0.42, 1.0],  # dark teal
+    #     [0.52, 0.38, 0.02, 1.0],  # ochre
+    #     [0.48, 0.08, 0.08, 1.0],  # brick red
+    # ])
 
-    head_colors = np.tile(base_color, (n, 1))
-    trail_colors = np.tile(base_color, (n, 1))
+    palette = np.array([
+        [0.0, 0.45, 0.70, 1.0],  # bright blue
+        [0.85, 0.33, 0.10, 1.0], # bright orange
+        # [0.35, 0.70, 0.10, 1.0], # bright green
+        # [0.80, 0.15, 0.45, 1.0], # magenta/pink
+        # [0.60, 0.60, 0.00, 1.0], # olive/dark yellow
+    ])
+
+    base_color = palette[0].copy()
+    leader_color = np.array([0.45, 0.00, 0.55, 1.0])  # dark purple
+
+    def _scalar_colors_discrete(scalars: np.ndarray) -> np.ndarray:
+        """
+        Map one scalar per agent to one of a few dark colors using quantile bins.
+        This is much more robust on white backgrounds than a continuous cmap.
+        """
+        scalars = np.asarray(scalars, dtype=float)
+        if scalars.shape != (n,):
+            raise ValueError(f"`scalars` must have shape ({n},), got {scalars.shape}")
+
+        # Handle degenerate case
+        if np.allclose(np.nanmax(scalars), np.nanmin(scalars)):
+            return np.tile(base_color, (n, 1))
+
+        # Quantile bins so colors are actually used even for skewed distributions
+        q = np.linspace(0, 1, len(palette) + 1)
+        edges = np.quantile(scalars, q)
+
+        # Make strictly increasing if repeated quantiles occur
+        edges = edges.astype(float)
+        for i in range(1, len(edges)):
+            if edges[i] <= edges[i - 1]:
+                edges[i] = edges[i - 1] + 1e-12
+
+        # Bin IDs in [0, len(palette)-1]
+        bin_ids = np.digitize(scalars, edges[1:-1], right=True)
+        return palette[bin_ids]
+
+    # ------------------------------------------------------------------
+    # Agent colors
+    # ------------------------------------------------------------------
+    if scalars is None:
+        head_colors = np.tile(base_color, (n, 1))
+        trail_colors = np.tile(base_color, (n, 1))
+    else:
+        head_colors = _scalar_colors_discrete(scalars)
+        trail_colors = head_colors.copy()
+
+    # Optional leader override
     if leader is not None:
         head_colors[leader] = leader_color
         trail_colors[leader] = leader_color
@@ -434,8 +675,8 @@ def render_video(
             return segments, np.empty((0, 4))
 
         # Oldest -> newest fade
-        alphas = np.linspace(0.02, trail_alpha, len(segments))
-        colors = np.tile(np.r_[color, 1.0], (len(segments), 1))
+        alphas = np.linspace(0.03, trail_alpha, len(segments))
+        colors = np.tile(color, (len(segments), 1))
         colors[:, 3] = alphas
 
         return segments, colors
@@ -454,7 +695,8 @@ def render_video(
             s=point_size,
             c=head_colors,
             alpha=head_alpha,
-            edgecolors="none",
+            edgecolors=(0, 0, 0, 0.30),
+            linewidths=0.30,
             zorder=3,
         )
     else:
@@ -526,6 +768,8 @@ def render_video(
         plt.close(fig)
 
     return ani
+
+
 
 # ---------------------------------------------------------------------------
 # Order parameter plot

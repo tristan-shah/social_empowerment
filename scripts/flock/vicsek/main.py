@@ -128,7 +128,7 @@ def main(args):
 
     ## empowerment arguments
     power_density = args.power_density * jnp.ones(args.num_agents)
-    # power_density = power_density.at[args.num_agents // 2:].set(0.5 * args.power_density)
+    power_density = power_density.at[args.num_agents // 2:].set(2 * args.power_density)
     
     flock = Vicsek(args.num_agents, args.grid_size, args.radius, args.speed, args.J, args.D)
     reset = make_reset(flock)
@@ -223,7 +223,8 @@ def main(args):
     if args.behavior not in ['leader', 'feedback']:
         LEADER = None
     
-    render_video(X, flock, path = output_dir / 'vid.mp4', leader = LEADER)
+    # render_video(X, flock, path = output_dir / 'vid.mp4', leader = LEADER, scalars = power_density, cmap = 'hsv', point_size = 20, trail_alpha = 1.0)
+    render_video(X, flock, path = output_dir / 'vid.mp4', leader = LEADER, scalars = power_density)
 
     return None
 

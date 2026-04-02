@@ -1,19 +1,17 @@
 import subprocess
 
 
-ratio = 80 / 200
+ratio = 200 / 80 ## physical / video
 
-times = [1, 10, 20, 30, 40, 45]
+physical_time = 75
+video_time = physical_time * (1/ratio)
 
+print(video_time)
 
-for time in times:
-
-    video_time = time * (1/ratio)
-
-    subprocess.run([
-        "ffmpeg",
-        "-ss", str(video_time),
-        "-i", "vid.mp4",
-        "-frames:v", "1",
-        f"frame_{str(time)}s.jpg"
-    ], check = True)
+subprocess.run([
+    "ffmpeg",
+    "-i", "vid.mp4",
+    "-ss", str(video_time),
+    "-frames:v", "1",
+    f"frame_{physical_time}s.jpg"
+], check = True)

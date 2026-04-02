@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 if __name__ == '__main__':
     dt = 0.05
 
-    empowerment_path = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=egoistic-grid_size=5.0-horizon=5-num_agents=100-observation_noise=1.0-power_density=2.0-radius=0.5-seed=0-speed=1.0-steps=2000/empowerment_hist.npy')
+    # empowerment_path = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=egoistic-grid_size=5.0-horizon=5-num_agents=100-observation_noise=1.0-power_density=2.0-radius=0.5-seed=0-speed=1.0-steps=2000/empowerment_hist.npy')
+    empowerment_path = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=egoistic-grid_size=5.0-horizon=5-num_agents=125-observation_noise=1.0-power_density=2.0-radius=0.5-seed=6-speed=1.0-steps=4000/empowerment_hist.npy')
     passive_path = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=passive-grid_size=5.0-horizon=5-num_agents=100-observation_noise=1.0-power_density=2.0-radius=0.5-seed=0-speed=1.0-steps=2000/empowerment_hist.npy')
 
     empowerment_hist = jnp.load(empowerment_path)
@@ -36,15 +37,15 @@ if __name__ == '__main__':
         alpha=0.2
     )
 
-    # Passive
-    ax.plot(t, passive_mean, color='orange', label='Passive')
-    ax.fill_between(
-        t,
-        passive_mean - passive_std,
-        passive_mean + passive_std,
-        color='orange',
-        alpha=0.2
-    )
+    # # Passive
+    # ax.plot(t, passive_mean, color='orange', label='Passive')
+    # ax.fill_between(
+    #     t,
+    #     passive_mean - passive_std,
+    #     passive_mean + passive_std,
+    #     color='orange',
+    #     alpha=0.2
+    # )
 
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Empowerment (nats)')
