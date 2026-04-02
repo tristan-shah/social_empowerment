@@ -118,50 +118,396 @@ def render_image(state: Array, flock: Flock, show_radius: bool = False, leader: 
 # Video render
 # ---------------------------------------------------------------------------
 
+# def render_video(
+#     states: Array,
+#     flock: Flock,
+#     fps: int = 50,
+#     path: str | None = None,
+#     show_radius: bool = False,
+#     dpi: int = 200,
+#     leader: int | None = None,
+# ) -> animation.FuncAnimation:
+#     states_np = np.asarray(states)
+#     T, n = len(states_np), flock.num_agents
+
+#     # Vectorised decode — single reshape + two trig calls over the full (T, n) array
+#     s = states_np.reshape(T, n, 3)
+#     all_x  = s[:, :, 0]          # (T, n)
+#     all_y  = s[:, :, 1]
+#     all_cx = np.cos(s[:, :, 2])
+#     all_cy = np.sin(s[:, :, 2])
+
+#     # Pre-allocate offset buffer reused every frame
+#     offsets = np.empty((n, 2), dtype=np.float64)
+
+#     fig, ax = plt.subplots(figsize=(10, 10), facecolor="white")
+#     _setup_ax(ax, flock.grid_size)
+#     fig.tight_layout(pad=0)
+#     fig.canvas.draw()
+
+#     colors = _make_colors(n, leader)
+#     circles = _draw_radii(ax, all_x[0], all_y[0], flock.neighbor_radius) if show_radius else []
+#     q = ax.quiver(all_x[0], all_y[0], all_cx[0], all_cy[0],
+#                   color=colors, scale=50, width=0.003, alpha=0.85)
+
+#     def update(frame):
+#         offsets[:, 0] = all_x[frame]
+#         offsets[:, 1] = all_y[frame]
+#         q.set_offsets(offsets)
+#         q.set_UVC(all_cx[frame], all_cy[frame])
+#         if circles:
+#             for c, xi, yi in zip(circles, all_x[frame], all_y[frame]):
+#                 c.center = (xi, yi)
+#         return (q, *circles)
+
+#     ani = animation.FuncAnimation(
+#         fig, update, frames=T, interval=1000 // fps, blit=True,
+#     )
+
+#     if path is not None:
+#         writer = animation.FFMpegWriter(
+#             fps=fps,
+#             bitrate=-1,
+#             extra_args=[
+#                 "-vcodec", "libx264",
+#                 "-crf", "18",
+#                 "-preset", "fast",
+#                 "-pix_fmt", "yuv420p",
+#                 "-threads", "0",
+#             ],
+#         )
+#         with plt.rc_context({"path.simplify": True, "path.simplify_threshold": 1.0}):
+#             ani.save(path, writer=writer, dpi=dpi)
+#         plt.close(fig)
+
+#     return ani
+
+
+
+
+## new version
+
+# def render_video(
+#     states: Array,
+#     flock: Flock,
+#     fps: int = 50,
+#     path: str | None = None,
+#     dpi: int = 200,
+#     leader: int | None = None,
+#     trail_len: int = 40,
+#     show_heads: bool = True,
+#     show_arrows: bool = False,
+#     arrow_scale: float = 70,
+#     point_size: float = 10,
+#     trail_alpha: float = 0.7,
+#     head_alpha: float = 1.0,
+#     linewidth: float = 0.45,
+#     publication_style: bool = True,
+# ) -> animation.FuncAnimation:
+#     """
+#     Render Vicsek trajectories with fading trails.
+
+#     FIXED:
+#     - breaks trails at periodic boundary crossings
+#     - avoids fake horizontal/vertical artifact lines
+#     """
+#     states_np = np.asarray(states)
+#     T, n = len(states_np), flock.num_agents
+
+#     s = states_np.reshape(T, n, 3)
+#     all_x = s[:, :, 0]
+#     all_y = s[:, :, 1]
+#     all_a = s[:, :, 2]
+#     all_cx = np.cos(all_a)
+#     all_cy = np.sin(all_a)
+
+#     fig, ax = plt.subplots(figsize=(8, 8), facecolor="white")
+#     _setup_ax(ax, flock.grid_size)
+
+#     if publication_style:
+#         ax.set_facecolor("white")
+#         for artist in list(ax.patches):
+#             artist.remove()
+
+#     fig.tight_layout(pad=0)
+
+#     base_color = np.array([0.10, 0.20, 0.45])
+#     leader_color = np.array([0.85, 0.15, 0.15])
+
+#     head_colors = np.tile(base_color, (n, 1))
+#     trail_colors = np.tile(base_color, (n, 1))
+#     if leader is not None:
+#         head_colors[leader] = leader_color
+#         trail_colors[leader] = leader_color
+
+#     # --- one trail line per agent ---
+#     trail_lines = []
+#     for i in range(n):
+#         line, = ax.plot(
+#             [], [],
+#             lw=linewidth,
+#             alpha=trail_alpha,
+#             color=trail_colors[i],
+#             solid_capstyle="round",
+#             zorder=1,
+#         )
+#         trail_lines.append(line)
+
+#     # --- current positions ---
+#     if show_heads:
+#         heads = ax.scatter(
+#             all_x[0], all_y[0],
+#             s=point_size,
+#             c=head_colors,
+#             alpha=head_alpha,
+#             edgecolors="none",
+#             zorder=3,
+#         )
+#     else:
+#         heads = None
+
+#     # --- optional heading arrows ---
+#     if show_arrows:
+#         q = ax.quiver(
+#             all_x[0], all_y[0], all_cx[0], all_cy[0],
+#             color=head_colors,
+#             scale=arrow_scale,
+#             width=0.0025,
+#             alpha=0.35,
+#             zorder=2,
+#         )
+#     else:
+#         q = None
+
+#     box_width = 2 * flock.grid_size
+
+#     def _segment_periodic_path(x: np.ndarray, y: np.ndarray):
+#         dx = np.abs(np.diff(x))
+#         dy = np.abs(np.diff(y))
+#         jumps = (dx > 0.5 * box_width) | (dy > 0.5 * box_width)
+
+#         x_plot = x.astype(float).copy()
+#         y_plot = y.astype(float).copy()
+
+#         x_plot[1:][jumps] = np.nan
+#         y_plot[1:][jumps] = np.nan
+#         return x_plot, y_plot
+
+#     def update(frame):
+#         start = max(0, frame - trail_len)
+
+#         artists = []
+
+#         # update trails
+#         for i, line in enumerate(trail_lines):
+#             x_traj = all_x[start:frame + 1, i]
+#             y_traj = all_y[start:frame + 1, i]
+
+#             # FIX: break lines across periodic wrap jumps
+#             x_plot, y_plot = _segment_periodic_path(x_traj, y_traj)
+#             line.set_data(x_plot, y_plot)
+#             artists.append(line)
+
+#         # update heads
+#         if heads is not None:
+#             heads.set_offsets(np.column_stack([all_x[frame], all_y[frame]]))
+#             artists.append(heads)
+
+#         # update arrows
+#         if q is not None:
+#             q.set_offsets(np.column_stack([all_x[frame], all_y[frame]]))
+#             q.set_UVC(all_cx[frame], all_cy[frame])
+#             artists.append(q)
+
+#         return tuple(artists)
+
+#     ani = animation.FuncAnimation(
+#         fig,
+#         update,
+#         frames=T,
+#         interval=1000 // fps,
+#         blit=False,
+#     )
+
+#     if path is not None:
+#         writer = animation.FFMpegWriter(
+#             fps=fps,
+#             bitrate=-1,
+#             extra_args=[
+#                 "-vcodec", "libx264",
+#                 "-crf", "16",
+#                 "-preset", "slow",
+#                 "-pix_fmt", "yuv420p",
+#                 "-threads", "0",
+#             ],
+#         )
+#         ani.save(path, writer=writer, dpi=dpi)
+#         plt.close(fig)
+
+#     return ani
+
+
 def render_video(
     states: Array,
     flock: Flock,
     fps: int = 50,
     path: str | None = None,
-    show_radius: bool = False,
     dpi: int = 200,
     leader: int | None = None,
+    trail_len: int = 40,
+    show_heads: bool = True,
+    show_arrows: bool = False,
+    arrow_scale: float = 70,
+    point_size: float = 10,
+    trail_alpha: float = 0.7,
+    head_alpha: float = 1.0,
+    linewidth: float = 0.45,
+    publication_style: bool = True,
 ) -> animation.FuncAnimation:
+    """
+    Render Vicsek trajectories with TRUE fading trails.
+
+    FIXED:
+    - trails fade from old -> new
+    - breaks trails at periodic boundary crossings
+    - avoids fake horizontal/vertical artifact lines
+    """
+    from matplotlib.collections import LineCollection
+
     states_np = np.asarray(states)
     T, n = len(states_np), flock.num_agents
 
-    # Vectorised decode — single reshape + two trig calls over the full (T, n) array
     s = states_np.reshape(T, n, 3)
-    all_x  = s[:, :, 0]          # (T, n)
-    all_y  = s[:, :, 1]
-    all_cx = np.cos(s[:, :, 2])
-    all_cy = np.sin(s[:, :, 2])
+    all_x = s[:, :, 0]
+    all_y = s[:, :, 1]
+    all_a = s[:, :, 2]
+    all_cx = np.cos(all_a)
+    all_cy = np.sin(all_a)
 
-    # Pre-allocate offset buffer reused every frame
-    offsets = np.empty((n, 2), dtype=np.float64)
-
-    fig, ax = plt.subplots(figsize=(10, 10), facecolor="white")
+    fig, ax = plt.subplots(figsize=(8, 8), facecolor="white")
     _setup_ax(ax, flock.grid_size)
-    fig.tight_layout(pad=0)
-    fig.canvas.draw()
 
-    colors = _make_colors(n, leader)
-    circles = _draw_radii(ax, all_x[0], all_y[0], flock.neighbor_radius) if show_radius else []
-    q = ax.quiver(all_x[0], all_y[0], all_cx[0], all_cy[0],
-                  color=colors, scale=50, width=0.003, alpha=0.85)
+    if publication_style:
+        ax.set_facecolor("white")
+        for artist in list(ax.patches):
+            artist.remove()
+
+    fig.tight_layout(pad=0)
+
+    base_color = np.array([0.10, 0.20, 0.45])
+    leader_color = np.array([0.85, 0.15, 0.15])
+
+    head_colors = np.tile(base_color, (n, 1))
+    trail_colors = np.tile(base_color, (n, 1))
+    if leader is not None:
+        head_colors[leader] = leader_color
+        trail_colors[leader] = leader_color
+
+    box_width = 2 * flock.grid_size
+
+    def _segment_periodic_path(x: np.ndarray, y: np.ndarray):
+        dx = np.abs(np.diff(x))
+        dy = np.abs(np.diff(y))
+        jumps = (dx > 0.5 * box_width) | (dy > 0.5 * box_width)
+
+        x_plot = x.astype(float).copy()
+        y_plot = y.astype(float).copy()
+
+        x_plot[1:][jumps] = np.nan
+        y_plot[1:][jumps] = np.nan
+        return x_plot, y_plot
+
+    def _make_fading_segments(x: np.ndarray, y: np.ndarray, color: np.ndarray):
+        """
+        Convert a trajectory into short line segments with fading alpha.
+        """
+        points = np.column_stack([x, y])
+
+        # Build line segments between consecutive points
+        segments = np.stack([points[:-1], points[1:]], axis=1)
+
+        # Remove segments containing NaNs (from periodic wrap breaks)
+        valid = ~np.isnan(segments).any(axis=(1, 2))
+        segments = segments[valid]
+
+        if len(segments) == 0:
+            return segments, np.empty((0, 4))
+
+        # Oldest -> newest fade
+        alphas = np.linspace(0.02, trail_alpha, len(segments))
+        colors = np.tile(np.r_[color, 1.0], (len(segments), 1))
+        colors[:, 3] = alphas
+
+        return segments, colors
+
+    # --- one fading trail collection per agent ---
+    trail_collections = []
+    for i in range(n):
+        lc = LineCollection([], linewidths=linewidth, zorder=1, capstyle="round")
+        ax.add_collection(lc)
+        trail_collections.append(lc)
+
+    # --- current positions ---
+    if show_heads:
+        heads = ax.scatter(
+            all_x[0], all_y[0],
+            s=point_size,
+            c=head_colors,
+            alpha=head_alpha,
+            edgecolors="none",
+            zorder=3,
+        )
+    else:
+        heads = None
+
+    # --- optional heading arrows ---
+    if show_arrows:
+        q = ax.quiver(
+            all_x[0], all_y[0], all_cx[0], all_cy[0],
+            color=head_colors,
+            scale=arrow_scale,
+            width=0.0025,
+            alpha=0.35,
+            zorder=2,
+        )
+    else:
+        q = None
 
     def update(frame):
-        offsets[:, 0] = all_x[frame]
-        offsets[:, 1] = all_y[frame]
-        q.set_offsets(offsets)
-        q.set_UVC(all_cx[frame], all_cy[frame])
-        if circles:
-            for c, xi, yi in zip(circles, all_x[frame], all_y[frame]):
-                c.center = (xi, yi)
-        return (q, *circles)
+        start = max(0, frame - trail_len)
+        artists = []
+
+        # update fading trails
+        for i, lc in enumerate(trail_collections):
+            x_traj = all_x[start:frame + 1, i]
+            y_traj = all_y[start:frame + 1, i]
+
+            x_plot, y_plot = _segment_periodic_path(x_traj, y_traj)
+            segments, colors = _make_fading_segments(x_plot, y_plot, trail_colors[i])
+
+            lc.set_segments(segments)
+            lc.set_color(colors)
+            artists.append(lc)
+
+        # update heads
+        if heads is not None:
+            heads.set_offsets(np.column_stack([all_x[frame], all_y[frame]]))
+            artists.append(heads)
+
+        # update arrows
+        if q is not None:
+            q.set_offsets(np.column_stack([all_x[frame], all_y[frame]]))
+            q.set_UVC(all_cx[frame], all_cy[frame])
+            artists.append(q)
+
+        return tuple(artists)
 
     ani = animation.FuncAnimation(
-        fig, update, frames=T, interval=1000 // fps, blit=True,
+        fig,
+        update,
+        frames=T,
+        interval=1000 // fps,
+        blit=False,
     )
 
     if path is not None:
@@ -170,14 +516,13 @@ def render_video(
             bitrate=-1,
             extra_args=[
                 "-vcodec", "libx264",
-                "-crf", "18",
-                "-preset", "fast",
+                "-crf", "16",
+                "-preset", "slow",
                 "-pix_fmt", "yuv420p",
                 "-threads", "0",
             ],
         )
-        with plt.rc_context({"path.simplify": True, "path.simplify_threshold": 1.0}):
-            ani.save(path, writer=writer, dpi=dpi)
+        ani.save(path, writer=writer, dpi=dpi)
         plt.close(fig)
 
     return ani
