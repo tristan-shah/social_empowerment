@@ -602,32 +602,57 @@ def render_video(
     base_color = palette[0].copy()
     leader_color = np.array([0.45, 0.00, 0.55, 1.0])  # dark purple
 
+    # def _scalar_colors_discrete(scalars: np.ndarray) -> np.ndarray:
+    #     """
+    #     Map one scalar per agent to one of a few dark colors using quantile bins.
+    #     This is much more robust on white backgrounds than a continuous cmap.
+    #     """
+    #     scalars = np.asarray(scalars, dtype=float)
+    #     if scalars.shape != (n,):
+    #         raise ValueError(f"`scalars` must have shape ({n},), got {scalars.shape}")
+
+    #     # Handle degenerate case
+    #     if np.allclose(np.nanmax(scalars), np.nanmin(scalars)):
+    #         return np.tile(base_color, (n, 1))
+
+    #     # Quantile bins so colors are actually used even for skewed distributions
+    #     q = np.linspace(0, 1, len(palette) + 1)
+    #     edges = np.quantile(scalars, q)
+
+    #     # Make strictly increasing if repeated quantiles occur
+    #     edges = edges.astype(float)
+    #     for i in range(1, len(edges)):
+    #         if edges[i] <= edges[i - 1]:
+    #             edges[i] = edges[i - 1] + 1e-12
+
+    #     # Bin IDs in [0, len(palette)-1]
+    #     bin_ids = np.digitize(scalars, edges[1:-1], right=True)
+    #     return palette[bin_ids]
+
     def _scalar_colors_discrete(scalars: np.ndarray) -> np.ndarray:
         """
-        Map one scalar per agent to one of a few dark colors using quantile bins.
-        This is much more robust on white backgrounds than a continuous cmap.
+        Assign a distinct color to each agent from the palette, cycling if needed.
+        Works for any number of agents, avoids degenerate cases with odd numbers.
         """
         scalars = np.asarray(scalars, dtype=float)
-        if scalars.shape != (n,):
-            raise ValueError(f"`scalars` must have shape ({n},), got {scalars.shape}")
+        if scalars.shape != (len(scalars),):
+            raise ValueError(f"`scalars` must have shape ({len(scalars)},), got {scalars.shape}")
 
-        # Handle degenerate case
+        n_agents = len(scalars)
+
+        # Degenerate case: all scalars identical → use base_color
         if np.allclose(np.nanmax(scalars), np.nanmin(scalars)):
-            return np.tile(base_color, (n, 1))
+            return np.tile(base_color, (n_agents, 1))
 
-        # Quantile bins so colors are actually used even for skewed distributions
-        q = np.linspace(0, 1, len(palette) + 1)
-        edges = np.quantile(scalars, q)
+        # Sort scalars to preserve relative ordering
+        sorted_idx = np.argsort(scalars)
 
-        # Make strictly increasing if repeated quantiles occur
-        edges = edges.astype(float)
-        for i in range(1, len(edges)):
-            if edges[i] <= edges[i - 1]:
-                edges[i] = edges[i - 1] + 1e-12
+        # Assign colors by cycling through palette
+        colors = np.zeros((n_agents, 4))
+        for i, idx in enumerate(sorted_idx):
+            colors[idx] = palette[i % len(palette)]
 
-        # Bin IDs in [0, len(palette)-1]
-        bin_ids = np.digitize(scalars, edges[1:-1], right=True)
-        return palette[bin_ids]
+        return colors
 
     # ------------------------------------------------------------------
     # Agent colors

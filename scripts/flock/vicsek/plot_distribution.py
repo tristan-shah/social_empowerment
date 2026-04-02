@@ -50,7 +50,7 @@ def collect_angles(X, flock, start, offsets, relative=True):
 
 if __name__ == '__main__':
 
-    root = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=egoistic-grid_size=5.0-horizon=5-num_agents=125-observation_noise=1.0-power_density=2.0-radius=0.5-seed=6-speed=1.0-steps=4000')
+    root = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=egoistic-grid_size=5.0-horizon=5-num_agents=125-observation_noise=1.0-power_density=2.0-radius=0.5-seed=5-speed=1.0-steps=4000')
 
     with open(root / 'params.json', 'r') as f:
         params = json.load(f)
@@ -64,8 +64,14 @@ if __name__ == '__main__':
         params['D']
     )
 
+    ## empowerment arguments
+    power_density = params['power_density'] * jnp.ones(params['num_agents'])
+    power_density = power_density.at[params['num_agents'] // 2:].set(10 * params['power_density'])
+
+    print(power_density)
+
     X = jnp.load(root / 'trajectory.npy')
-    # render_video(X, flock, path='vid.mp4')
+    render_video(X, flock, path='vid.mp4', scalars = power_density)
 
     # -----------------------------
     # Publication-quality settings
