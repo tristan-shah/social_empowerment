@@ -18,7 +18,7 @@ python scripts/linked_pendulum/sweep_power.py \
     --seed 0 \
     --steps 2000 \
     --alpha 0.01 \
-    --horizon 150 \
+    --horizon 125 \
     --observation_noise 1.0 \
     --stiffness 3.0 \
     --damping 0.1 \
@@ -26,5 +26,5 @@ python scripts/linked_pendulum/sweep_power.py \
     --control_type egoistic \
     --dt 0.01 \
     --device_batch_size 50 \
-    --resolution 100 \
+    --resolution 200 \
     --max_power 4.0
