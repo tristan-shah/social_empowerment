@@ -222,9 +222,8 @@ def main(args):
 
     if args.behavior not in ['leader', 'feedback']:
         LEADER = None
-    
-    # render_video(X, flock, path = output_dir / 'vid.mp4', leader = LEADER, scalars = power_density, cmap = 'hsv', point_size = 20, trail_alpha = 1.0)
-    render_video(X, flock, path = output_dir / 'vid.mp4', leader = LEADER, scalars = power_density)
+        
+    render_video(X, flock, path = output_dir / 'vid.mp4', leader = LEADER)
 
     return None
 

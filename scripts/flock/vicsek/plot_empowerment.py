@@ -8,10 +8,10 @@ if __name__ == '__main__':
 
     # empowerment_path = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=egoistic-grid_size=5.0-horizon=5-num_agents=100-observation_noise=1.0-power_density=2.0-radius=0.5-seed=0-speed=1.0-steps=2000/empowerment_hist.npy')
     empowerment_path = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=egoistic-grid_size=5.0-horizon=5-num_agents=125-observation_noise=1.0-power_density=2.0-radius=0.5-seed=6-speed=1.0-steps=4000/empowerment_hist.npy')
-    passive_path = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=passive-grid_size=5.0-horizon=5-num_agents=100-observation_noise=1.0-power_density=2.0-radius=0.5-seed=0-speed=1.0-steps=2000/empowerment_hist.npy')
+    # passive_path = Path('/Users/tristanshah/Desktop/code/social_empowerment/results/Vicsek/D=0.0-J=0.1-alpha=0.01-behavior=passive-grid_size=5.0-horizon=5-num_agents=100-observation_noise=1.0-power_density=2.0-radius=0.5-seed=0-speed=1.0-steps=2000/empowerment_hist.npy')
 
     empowerment_hist = jnp.load(empowerment_path)
-    passive_hist = jnp.load(passive_path)
+    # passive_hist = jnp.load(passive_path)
 
     T, num_agents = empowerment_hist.shape
     t = jnp.arange(T) * dt
@@ -22,8 +22,8 @@ if __name__ == '__main__':
     empowerment_mean = empowerment_hist.mean(axis=1)
     empowerment_std = empowerment_hist.std(axis=1)
 
-    passive_mean = passive_hist.mean(axis=1)
-    passive_std = passive_hist.std(axis=1)
+    # passive_mean = passive_hist.mean(axis=1)
+    # passive_std = passive_hist.std(axis=1)
 
     fig, ax = plt.subplots()
 
