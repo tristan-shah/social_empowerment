@@ -128,7 +128,7 @@ def main(args):
 
     ## empowerment arguments
     power_density = args.power_density * jnp.ones(args.num_agents)
-    power_density = power_density.at[args.num_agents // 2:].set(10 * args.power_density)
+    # power_density = power_density.at[args.num_agents // 2:].set(10 * args.power_density)
     
     flock = Vicsek(args.num_agents, args.grid_size, args.radius, args.speed, args.J, args.D)
     reset = make_reset(flock)

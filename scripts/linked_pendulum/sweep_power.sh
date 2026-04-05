@@ -18,7 +18,7 @@ python scripts/linked_pendulum/sweep_power.py \
     --seed 0 \
     --steps 2000 \
     --alpha 0.01 \
-    --horizon 125 \
+    --horizon 130 \
     --observation_noise 1.0 \
     --stiffness 3.0 \
     --damping 0.1 \
