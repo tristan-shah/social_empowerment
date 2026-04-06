@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     state_type = 'angle'
     control_type = 'egoistic'
-    horizon = 75
+    horizon = 150
     dt = 0.01
     stiffness = 3.0
     damping = 0.1
