@@ -22,12 +22,12 @@ python scripts/linked_pendulum/sweep_power.py \
     --seed 0 \
     --steps 2000 \
     --alpha 0.01 \
-    --horizon 75 \
+    --horizon 130 \
     --observation_noise 1.0 \
     --stiffness 3.0 \
     --damping 0.1 \
     --state_type angle \
-    --control_type egoistic \
+    --control_type ave \
     --dt 0.01 \
     --device_batch_size 50 \
     --resolution 200 \

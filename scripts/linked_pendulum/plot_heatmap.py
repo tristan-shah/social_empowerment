@@ -13,8 +13,8 @@ from sweep_power import get_linked_pendulum_outcome, make_compute_group_empowerm
 if __name__ == '__main__':
 
     state_type = 'angle'
-    control_type = 'egoistic'
-    horizon = 125
+    control_type = 'ave'
+    horizon = 130
     dt = 0.01
     stiffness = 3.0
     damping = 0.1
