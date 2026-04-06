@@ -19,7 +19,7 @@ print(video_time)
 
 subprocess.run([
     "ffmpeg",
-    "-i", "vid.mp4",
+    "-i", "vid_sharp.mp4",
     "-ss", str(video_time),
     "-frames:v", "1",
     "-vf", "scale=iw*2:ih*2",   # 2x upscale — adjust multiplier as needed
