@@ -83,6 +83,167 @@ if __name__ == '__main__':
 
 
 
+    # '''
+    # for plotting full empowerment heatmap comparison
+    # '''
+    # # sort files by batch index extracted from filename                                                                                                            
+    # batch_files = sorted(root.glob('X_batch_*'), key=lambda p: int(re.search(r'\d+', p.stem).group()))
+    # batch_get_linked_pendulum_outcome = jax.vmap(get_linked_pendulum_outcome)
+    # effective_batch_size = None
+
+    # for path in batch_files:
+    #     batch_idx = int(re.search(r'\d+', path.stem).group())
+    #     X_batch = jnp.load(path.resolve())
+    #     pairs = jnp.load(root / f'pairs_batch_{batch_idx}.npy')
+
+    #     last_N_states = X_batch[:, -N:, :]
+
+    #     if effective_batch_size is None:
+    #         effective_batch_size = X_batch.shape[0]
+
+    #     start_idx = batch_idx * effective_batch_size
+    #     end_idx = min(start_idx + effective_batch_size, resolution * resolution)
+    #     actual_size = end_idx - start_idx
+
+    #     last_N_states = last_N_states[:actual_size]
+    #     pairs = pairs[:actual_size]
+
+    #     # (batch, N, num_agents) -> mean over N -> (batch, num_agents)
+    #     e = batch_compute_group_empowerment(last_N_states, pairs).mean(axis = 1)
+
+    #     batch_I = I_flat[start_idx:end_idx]
+    #     batch_J = J_flat[start_idx:end_idx]
+    #     empowerment_outcome = empowerment_outcome.at[batch_I, batch_J].set(e)
+    #     print(f'batch {batch_idx}: placed {actual_size} empowerments at [{start_idx}:{end_idx}]')
+
+    # outcomes = jnp.load(root / 'outcomes.npy')
+
+    # # empowerment_outcome: (resolution, resolution, 2) — agent 0 is left, agent 1 is right
+    # from matplotlib.colors import ListedColormap, BoundaryNorm
+    # fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    # tick_spacing = max(1, resolution // 10)
+    # ticks = jnp.unique(jnp.concatenate([jnp.arange(0, resolution, tick_spacing), jnp.array([resolution - 1])]))
+
+    # titles = ['Left Agent Empowerment', 'Right Agent Empowerment']
+    # for agent_idx, (ax, title) in enumerate(zip(axes[:2], titles)):
+    #     img = ax.imshow(empowerment_outcome[:, :, agent_idx], origin='lower', aspect='auto')
+    #     cbar = plt.colorbar(img, ax=ax)
+    #     cbar.set_label('Empowerment (nats)')
+    #     ax.set_xticks(ticks)
+    #     ax.set_xticklabels([f'{v:.1f}' for v in powers[ticks]], rotation=90)
+    #     ax.set_yticks(ticks)
+    #     ax.set_yticklabels([f'{v:.1f}' for v in powers[ticks]])
+    #     ax.set_xlabel('Right Agent Power')
+    #     ax.set_ylabel('Left Agent Power')
+    #     ax.set_title(title)
+
+    # colors = ['lightgray', 'blue', 'orange', 'green']
+    # labels = ['Neither', 'Left', 'Right', 'Both']
+    # cmap = ListedColormap(colors)
+    # norm = BoundaryNorm(boundaries=[-0.5, 0.5, 1.5, 2.5, 3.5], ncolors=4)
+    # img = axes[2].imshow(outcomes, cmap=cmap, norm=norm, origin='lower', aspect='auto')
+    # axes[2].set_xticks(ticks)
+    # axes[2].set_xticklabels([f'{v:.1f}' for v in powers[ticks]], rotation=90)
+    # axes[2].set_yticks(ticks)
+    # axes[2].set_yticklabels([f'{v:.1f}' for v in powers[ticks]])
+    # axes[2].set_xlabel('Right Agent Power')
+    # axes[2].set_ylabel('Left Agent Power')
+    # axes[2].set_title('Outcome')
+    # cbar = plt.colorbar(img, ax=axes[2], ticks=[0, 1, 2, 3])
+    # cbar.ax.set_yticklabels(labels)
+    # cbar.set_label('Pendulum Upright (|θ - π| ≤ 1.0 rad)')
+
+    # plt.tight_layout()
+    # fig.savefig(root / f'N={N}-empowerment_heatmap.png', dpi=300)
+    # plt.close(fig)
+
+    '''
+    IMPROVED VERSION 1
+    '''
+    # # sort files by batch index extracted from filename                                                                                                            
+    # batch_files = sorted(root.glob('X_batch_*'), key=lambda p: int(re.search(r'\d+', p.stem).group()))
+    # batch_get_linked_pendulum_outcome = jax.vmap(get_linked_pendulum_outcome)
+    # effective_batch_size = None
+
+    # for path in batch_files:
+    #     batch_idx = int(re.search(r'\d+', path.stem).group())
+    #     X_batch = jnp.load(path.resolve())
+    #     pairs = jnp.load(root / f'pairs_batch_{batch_idx}.npy')
+
+    #     last_N_states = X_batch[:, -N:, :]
+
+    #     if effective_batch_size is None:
+    #         effective_batch_size = X_batch.shape[0]
+
+    #     start_idx = batch_idx * effective_batch_size
+    #     end_idx = min(start_idx + effective_batch_size, resolution * resolution)
+    #     actual_size = end_idx - start_idx
+
+    #     last_N_states = last_N_states[:actual_size]
+    #     pairs = pairs[:actual_size]
+
+    #     # (batch, N, num_agents) -> mean over N -> (batch, num_agents)
+    #     e = batch_compute_group_empowerment(last_N_states, pairs).mean(axis = 1)
+
+    #     batch_I = I_flat[start_idx:end_idx]
+    #     batch_J = J_flat[start_idx:end_idx]
+    #     empowerment_outcome = empowerment_outcome.at[batch_I, batch_J].set(e)
+    #     print(f'batch {batch_idx}: placed {actual_size} empowerments at [{start_idx}:{end_idx}]')
+
+    # outcomes = jnp.load(root / 'outcomes.npy')
+
+    # # empowerment_outcome: (resolution, resolution, 2) — agent 0 is left, agent 1 is right
+    # plt.rcParams.update({
+    #     'font.size': 14,
+    #     'axes.titlesize': 16,
+    #     'axes.labelsize': 14,
+    #     'xtick.labelsize': 11,
+    #     'ytick.labelsize': 11,
+    # })
+
+    # fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+    # tick_spacing = max(1, resolution // 10)
+    # ticks = jnp.unique(jnp.concatenate([jnp.arange(0, resolution, tick_spacing), jnp.array([resolution - 1])]))
+
+    # titles = ['Left Agent Empowerment', 'Right Agent Empowerment']
+    # for agent_idx, (ax, title) in enumerate(zip(axes[:2], titles)):
+    #     img = ax.imshow(empowerment_outcome[:, :, agent_idx], origin='lower', aspect='auto')
+    #     cbar = plt.colorbar(img, ax=ax)
+    #     cbar.set_label('Empowerment (nats)', fontsize=13)
+    #     cbar.ax.tick_params(labelsize=11)
+    #     ax.set_xticks(ticks)
+    #     ax.set_xticklabels([f'{v:.1f}' for v in powers[ticks]], rotation=45, ha='right')
+    #     ax.set_yticks(ticks)
+    #     ax.set_yticklabels([f'{v:.1f}' for v in powers[ticks]])
+    #     ax.set_xlabel('Right Agent Power')
+    #     ax.set_ylabel('Left Agent Power')
+    #     ax.set_title(title, fontweight='bold')
+
+    # colors = ['lightgray', 'blue', 'orange', 'green']
+    # labels = ['Neither Up', 'Left Up', 'Right Up', 'Both Up']
+    # cmap = ListedColormap(colors)
+    # norm = BoundaryNorm(boundaries=[-0.5, 0.5, 1.5, 2.5, 3.5], ncolors=4)
+    # img = axes[2].imshow(outcomes, cmap=cmap, norm=norm, origin='lower', aspect='auto')
+    # axes[2].set_xticks(ticks)
+    # axes[2].set_xticklabels([f'{v:.1f}' for v in powers[ticks]], rotation=45, ha='right')
+    # axes[2].set_yticks(ticks)
+    # axes[2].set_yticklabels([f'{v:.1f}' for v in powers[ticks]])
+    # axes[2].set_xlabel('Right Agent Power')
+    # axes[2].set_ylabel('Left Agent Power')
+    # axes[2].set_title('Outcome', fontweight='bold')
+    # cbar = plt.colorbar(img, ax=axes[2], ticks=[0, 1, 2, 3])
+    # # cbar.ax.set_yticklabels(labels, fontsize=11)
+    # cbar.ax.set_yticklabels(labels, fontsize=11, rotation=90, va='center')
+    # # cbar.set_label('Pendulum Upright (|θ - π| ≤ 1.0 rad)', fontsize=13)
+    # cbar.ax.tick_params(labelsize=11)
+
+    # plt.tight_layout()
+    # fig.savefig(root / f'N={N}-empowerment_heatmap.png', dpi=400, bbox_inches='tight')
+    # plt.close(fig)
+    
+
+
+
     '''
     for plotting full empowerment heatmap comparison
     '''
@@ -119,40 +280,53 @@ if __name__ == '__main__':
     outcomes = jnp.load(root / 'outcomes.npy')
 
     # empowerment_outcome: (resolution, resolution, 2) — agent 0 is left, agent 1 is right
-    from matplotlib.colors import ListedColormap, BoundaryNorm
+    plt.rcParams.update({
+        'font.size': 14,
+        'axes.titlesize': 16,
+        'axes.labelsize': 14,
+        'xtick.labelsize': 11,
+        'ytick.labelsize': 11,
+    })
+
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
     tick_spacing = max(1, resolution // 10)
     ticks = jnp.unique(jnp.concatenate([jnp.arange(0, resolution, tick_spacing), jnp.array([resolution - 1])]))
+
+    axes[0].set_ylabel('Left Agent Power')
 
     titles = ['Left Agent Empowerment', 'Right Agent Empowerment']
     for agent_idx, (ax, title) in enumerate(zip(axes[:2], titles)):
         img = ax.imshow(empowerment_outcome[:, :, agent_idx], origin='lower', aspect='auto')
         cbar = plt.colorbar(img, ax=ax)
-        cbar.set_label('Empowerment (nats)')
+        cbar.set_label('Empowerment (nats)', fontsize=13)
+        cbar.ax.tick_params(labelsize=11)
         ax.set_xticks(ticks)
-        ax.set_xticklabels([f'{v:.1f}' for v in powers[ticks]], rotation=90)
+        ax.set_xticklabels([f'{v:.1f}' for v in powers[ticks]], rotation=45, ha='right')
         ax.set_yticks(ticks)
         ax.set_yticklabels([f'{v:.1f}' for v in powers[ticks]])
         ax.set_xlabel('Right Agent Power')
-        ax.set_ylabel('Left Agent Power')
-        ax.set_title(title)
+        # ax.set_ylabel('Left Agent Power')
+        ax.set_title(title, fontweight='bold')
 
     colors = ['lightgray', 'blue', 'orange', 'green']
-    labels = ['Neither', 'Left', 'Right', 'Both']
+    labels = ['Neither Up', 'Left Up', 'Right Up', 'Both Up']
     cmap = ListedColormap(colors)
     norm = BoundaryNorm(boundaries=[-0.5, 0.5, 1.5, 2.5, 3.5], ncolors=4)
     img = axes[2].imshow(outcomes, cmap=cmap, norm=norm, origin='lower', aspect='auto')
     axes[2].set_xticks(ticks)
-    axes[2].set_xticklabels([f'{v:.1f}' for v in powers[ticks]], rotation=90)
+    axes[2].set_xticklabels([f'{v:.1f}' for v in powers[ticks]], rotation=45, ha='right')
     axes[2].set_yticks(ticks)
     axes[2].set_yticklabels([f'{v:.1f}' for v in powers[ticks]])
     axes[2].set_xlabel('Right Agent Power')
-    axes[2].set_ylabel('Left Agent Power')
-    axes[2].set_title('Outcome')
+    # axes[2].set_ylabel('Left Agent Power')
+    axes[2].set_title('Outcome', fontweight='bold')
     cbar = plt.colorbar(img, ax=axes[2], ticks=[0, 1, 2, 3])
-    cbar.ax.set_yticklabels(labels)
-    cbar.set_label('Pendulum Upright (|θ - π| ≤ 1.0 rad)')
+    cbar.ax.set_yticklabels(labels, fontsize=11, rotation=90, va='center')
+    cbar.ax.tick_params(labelsize=11)
+
+    for ax in axes:
+        ax.set_box_aspect(1)
 
     plt.tight_layout()
-    fig.savefig(root / f'N={N}-empowerment_heatmap.png', dpi=300)
+    fig.savefig(root / f'N={N}-empowerment_heatmap.png', dpi=400, bbox_inches='tight')
     plt.close(fig)
