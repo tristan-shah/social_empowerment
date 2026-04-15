@@ -12,21 +12,21 @@ if __name__ == '__main__':
 
     seed = 0
     key = jax.random.key(seed)
-    num_agents = 100
-    grid_size = 2.0
-    neighbor_radius = 4.0
+    num_agents = 125
+    grid_size = 5.0
+    neighbor_radius = 0.5
     speed = 1.0
     J = 0.1
     D = 0.0
     dt = 0.05
 
-    alpha = 0.01
+    alpha = 0.7 #0.01
     observation_noise = 0.01 #1.0
-    horizon = 10
+    horizon = 5
     power_density = jnp.ones(num_agents)
     power = horizon * power_density ## total probing power depends on horizon
 
-    state_type = 'full' ## this is the only numerically stable state_type
+    state_type = 'angle' ## this is the only numerically stable state_type
     state_matrix = build_flock_state_matrix(num_agents, state_type)
 
     flock = Vicsek(num_agents, grid_size, neighbor_radius, speed, J, D, dt)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots(1, 1)
     
     for agent in range(num_agents):
-        ax.plot(e_hist[:, agent])
+        ax.plot(e_hist[:, agent], color = 'blue', alpha = 0.1)
 
     fig.savefig('iwf.png', dpi = 300)
     plt.show()
