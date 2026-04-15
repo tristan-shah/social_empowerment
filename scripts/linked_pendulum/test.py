@@ -15,8 +15,8 @@ if __name__ == '__main__':
     ## hyperparams
     steps = 2000
     state_type = 'angle'
-    control_type = 'egoistic'
-    horizon = 50
+    control_type = 'ave'
+    horizon = 150
     alpha = 0.01
     observation_noise = 1.0
 
@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     compute_group_empowerment = make_compute_group_empowerment(step, state_matrix, U, alpha, observation_noise)
 
-    power_density = jnp.array([2.56, 0.1])
+    power_density = jnp.array([0.1, 3.8])
 
     key = jax.random.key(0)
     key, subkey = jax.random.split(key)
