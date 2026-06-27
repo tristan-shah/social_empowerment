@@ -37,7 +37,7 @@ if __name__ == '__main__':
     )
 
     # Passive
-    ax.plot(t, passive_mean, color='orange', label='Passive')
+    ax.plot(t, passive_mean, color='orange', label='Baseline')
     ax.fill_between(
         t,
         passive_mean - passive_std,

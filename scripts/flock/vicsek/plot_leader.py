@@ -15,30 +15,30 @@ if __name__ == '__main__':
 
 
     leader_empowerment = empowerment_hist[:, 0]
-    followers_empowerment = empowerment_hist[:, 1:]
+    flock_empowerment = empowerment_hist[:, 1:]
 
-    # Mean and std across agents at each timestep
-    followers_mean = followers_empowerment.mean(axis=1)
-    followers_std = followers_empowerment.std(axis=1)
-
-
-    
+    # Mean and std across the flock at each timestep
+    flock_mean = flock_empowerment.mean(axis=1)
+    flock_std = flock_empowerment.std(axis=1)
 
     fig, ax = plt.subplots()
+
+    # Leader
     ax.plot(t, leader_empowerment, color='blue', label='Leader')
 
-    ax.plot(t, followers_mean, color='orange', label='Followers')
+    # Flock average
+    ax.plot(t, flock_mean, color='orange', label='Flock average')
     ax.fill_between(
         t,
-        followers_mean - followers_std,
-        followers_mean + followers_std,
+        flock_mean - flock_std,
+        flock_mean + flock_std,
         color='orange',
         alpha=0.2
     )
 
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Empowerment (nats)')
-    ax.set_title('Leader vs Followers Empowerment')
+    ax.set_title('Leader vs Flock Empowerment ± Standard Deviation', fontweight='bold')
     ax.legend()
     ax.grid(alpha = 0.3)
     plt.tight_layout()

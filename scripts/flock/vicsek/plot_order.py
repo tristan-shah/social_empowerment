@@ -21,7 +21,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
 
     ax.plot(t, empowerment_order, color='blue', label='Egoistic')
-    ax.plot(t, passive_order, color='orange', label='Passive')
+    ax.plot(t, passive_order, color='orange', label='Baseline')
 
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Order Parameter')
