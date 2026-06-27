@@ -6,11 +6,11 @@ Code for the paper **"Multi-Agent Empowerment and Emergence of Complex Behavior 
 The package shows that maximizing empowerment alone produces non-trivial group-level
 behavior in two qualitatively different environments:
 
-1. **Linked pendulums** — two pendulums coupled by a tendon. Empowerment maximization
+1. **Linked pendulums**: two pendulums coupled by a tendon. Empowerment maximization
    produces **dominance hierarchies** when agents have unequal strength (one pendulum
    swings up, the other is suppressed) and **cooperation** when their strengths are
    comparable (both swing up).
-2. **Vicsek flock** — a large controllable flock. Egoistic empowerment prevents the usual
+2. **Vicsek flock**: a large controllable flock. Egoistic empowerment prevents the usual
    convergence to a single shared heading and instead drives the population into **two
    opposing directional bands**.
 
@@ -26,20 +26,20 @@ chosen proportional to the gradient of empowerment with respect to the agent's a
 
 Two control policies are studied:
 
-- **Egoistic** — each agent acts to maximize *its own* empowerment.
-- **Altruistic / leader** — an agent acts to maximize the empowerment of *another* agent.
+- **Egoistic**: each agent acts to maximize *its own* empowerment.
+- **Altruistic / leader**: an agent acts to maximize the empowerment of *another* agent.
 
 The full implementation lives in `src/soc_emp/empowerment.py`:
 
-- `compute_F_from_A_B` — builds the sensitivity (channel) matrix from per-step linearized
+- `compute_F_from_A_B`: builds the sensitivity (channel) matrix from per-step linearized
   dynamics `A`, `B`.
-- `split_channel_matrix` — splits the channel matrix into each agent's direct channel and
+- `split_channel_matrix`: splits the channel matrix into each agent's direct channel and
   the interference channels from all others.
-- `waterfilling_implicit` / `waterfilling_solver` — single-user water-filling (with a
+- `waterfilling_implicit` / `waterfilling_solver`: single-user water-filling (with a
   differentiable implicit form via `jax.lax.custom_root`).
-- `waterfilling_operator` / `iterative_waterfilling` — the core multi-user iterative
+- `waterfilling_operator` / `iterative_waterfilling`: the core multi-user iterative
   water-filling fixed-point iteration (Algorithm 1 in the paper).
-- `compute_empowerment` / `compute_multiagent_empowerment` — single- and multi-agent
+- `compute_empowerment` / `compute_multiagent_empowerment`: single- and multi-agent
   empowerment, with JAX-differentiable gradients for control.
 
 Everything is written in [JAX](https://github.com/jax-ml/jax) and is JIT-compiled,
@@ -108,12 +108,12 @@ python scripts/linked_pendulum/sweep_power.py \
 
 Key arguments:
 
-- `--control_type {egoistic, ave}` — egoistic self-empowerment, or `ave` (altruistic, all
+- `--control_type {egoistic, ave}`: egoistic self-empowerment, or `ave` (altruistic, all
   agents raise agent 0's empowerment).
-- `--horizon` — empowerment planning horizon (in steps).
-- `--stiffness` / `--damping` — tendon coupling between the two pendulums.
-- `--resolution` — grid resolution of the power sweep.
-- `--device_batch_size` — per-GPU batch size; the sweep is `pmap`-parallelized over devices.
+- `--horizon`: empowerment planning horizon (in steps).
+- `--stiffness` / `--damping`: tendon coupling between the two pendulums.
+- `--resolution`: grid resolution of the power sweep.
+- `--device_batch_size`: per-GPU batch size; the sweep is `pmap`-parallelized over devices.
 
 Results (trajectories, per-cell outcomes, and an `outcome_heatmap.png`) are written under
 `results/linked_pendulum/control_type=.../`. See `sweep_power.sh` for the SLURM submission
@@ -134,12 +134,12 @@ python scripts/flock/vicsek/main.py \
 
 `--behavior` selects how empowerment gradients drive control:
 
-- `egoistic` — each agent maximizes its own empowerment (produces the opposing-band split).
-- `leader` — agents act to empower a single leader.
-- `feedback` — leader empowers the flock while the flock empowers the leader.
-- `collective` — all agents maximize the summed group empowerment.
-- `vanilla` — standard single-agent empowerment baseline.
-- `passive` — no control (plain Vicsek dynamics, for comparison).
+- `egoistic`: each agent maximizes its own empowerment.
+- `leader`: agents act to empower a single leader.
+- `feedback`: leader empowers the flock while the flock empowers the leader.
+- `collective`: all agents maximize the summed group empowerment.
+- `vanilla`: standard single-agent empowerment baseline.
+- `passive`: no control (plain Vicsek dynamics, for comparison).
 
 Vicsek parameters: `--J` alignment strength, `--D` noise intensity, `--num_agents`,
 `--grid_size`, `--radius` (neighbor falloff), `--speed`. Each run saves the trajectory,
