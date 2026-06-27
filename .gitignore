@@ -9,6 +9,9 @@ machinefile.*
 *.mp4
 *.png
 
+# macOS
+.DS_Store
+
 mujoco_menagerie/
 mujoco_playground/
 
