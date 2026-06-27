@@ -18,7 +18,6 @@
         <geom name="floor" pos="0 0 0" size="0 0 0.05" type="plane" material="groundplane" contype="0" conaffinity="0"/>
 
         <!-- Pendulum base -->
-        <!-- <body name="pendulum:0" pos="-0.5 0 1.2"> -->
         <body name="pendulum:0" pos="-1.1 0 1.2">
             <!-- Hinge joint rotates around y-axis -->
             <joint name="hinge:0" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0.1"/>
@@ -33,10 +32,8 @@
         </body>
 
         <!-- Pendulum base -->
-        <!-- <body name="pendulum:1" pos="0.5 0 1.2"> -->
         <body name="pendulum:1" pos="1.1 0 1.2">
             <!-- Hinge joint rotates around y-axis -->
-            <!-- <joint name="hinge:1" type="hinge" axis="0 1 0" pos="0 0 0" limited="false" damping="0.1"/> -->
             <joint name="hinge:1" type="hinge" axis="0 -1 0" pos="0 0 0" limited="false" damping="0.1"/>
 
             <!-- Rod of the pendulum -->
@@ -50,7 +47,6 @@
     </worldbody>
 
     <tendon>
-        <!-- <spatial name="spring_0_1" stiffness="3.0" damping="0.1" springlength="1.0" rgba="1 0 0 1" width="0.005"> -->
         <spatial name="spring_0_1" stiffness="3.0" damping="0.1" springlength="2.2" rgba="1 0 0 1" width="0.005">
             <site site="site:0"/>
             <site site="site:1"/>

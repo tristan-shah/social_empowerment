@@ -199,6 +199,9 @@ def waterfilling_operator(F_agent: Array, F_noise: Array, S: Array, S_z: Array, 
     power is the power budget for each agent
     '''
 
+
+    ## There is an issue with propagating gradients through eigenvalue decompositions particularly the orthonormal frame.
+    ## Especially when the matrix has repeated eigenvalues. Our solution is to place a stop gradient on the noise matrix.
     F_noise = jax.lax.stop_gradient(F_noise)
 
     S_noise = einsum(F_noise, S, F_noise, 'a1 a2 x1 m1, a2 m1 m2, a1 a2 x2 m2 -> a1 x1 x2') + S_z
@@ -245,6 +248,13 @@ MAX_ITER = 50
 def iterative_waterfilling(H_agent: Array, H_noise: Array, S: Array, S_z: Array, power: Array, alpha: float):
     '''
     Calculates channel capacity of a multiuser channel. Stops when the channel capacity reaches a fixed point.
+
+    H_agent: sensitivity of the state to each agent's actions
+    H_noise: sensitivity of the state to all other agent's actions
+    S: initial covariance matrix for each agent
+    S_z: observation noise (same for each agent)
+    power: probing power for each agent
+    alpha: scalar between 0 and 1 indicating how much to smooth waterfilling updates (smaller means less smoothing)
     '''
 
     num_agents = H_agent.shape[0]
@@ -285,12 +295,12 @@ def compute_multiagent_empowerment(
     dm = du * horizon
 
     ## full state
-    AGENT_0_STATE = [0, 2]
-    AGENT_1_STATE = [1, 3]
+    # AGENT_0_STATE = [0, 2]
+    # AGENT_1_STATE = [1, 3]
 
     ## angle state
-    # AGENT_0_STATE = [0]
-    # AGENT_1_STATE = [1]
+    AGENT_0_STATE = [0]
+    AGENT_1_STATE = [1]
 
     '''
     original

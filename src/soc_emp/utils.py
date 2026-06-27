@@ -3,6 +3,12 @@ from jax import Array
 from jax import numpy as jnp
 from mujoco.mjx import Data
 
+def dict_to_string(params: dict):
+    '''
+    Function to convert a dictionary into a file name for saving results.
+    '''
+    return '-'.join(f'{k}={params[k]}' for k in sorted(params))
+
 def smooth_angle_wrap(theta: float):
     return jax.lax.atan2(jax.lax.sin(theta), jax.lax.cos(theta))
 
